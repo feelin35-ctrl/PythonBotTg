@@ -1,0 +1,205 @@
+{
+  "nodes": [
+    {
+      "id": "adca128d-38b2-4e00-bf6c-777c8778e7a7",
+      "type": "start",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start"
+      },
+      "position": {
+        "x": 204.30555725097656,
+        "y": 29.5
+      }
+    },
+    {
+      "id": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "type": "inline_button",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": [
+          {
+            "label": "1"
+          },
+          {
+            "label": "2"
+          },
+          {
+            "label": "3"
+          },
+          {
+            "label": "Новая кнопка"
+          },
+          {
+            "label": "5"
+          }
+        ],
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "inline_button"
+      },
+      "position": {
+        "x": 121.66517986273993,
+        "y": 118.11985105910776
+      }
+    },
+    {
+      "id": "3e280506-916a-43f0-8615-3c8c0e1e9c30",
+      "type": "message",
+      "data": {
+        "label": "1",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message"
+      },
+      "position": {
+        "x": -78.7430920360005,
+        "y": 424.46412880848635
+      }
+    },
+    {
+      "id": "a5176583-d9dc-4b17-8d57-f1724303a849",
+      "type": "message",
+      "data": {
+        "label": "2",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message"
+      },
+      "position": {
+        "x": 138.46070479901317,
+        "y": 442.7725854838866
+      }
+    },
+    {
+      "id": "fb804a86-a3d8-4656-a14b-08e1c32a735e",
+      "type": "message",
+      "data": {
+        "label": "3",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message"
+      },
+      "position": {
+        "x": 348.9982905657254,
+        "y": 438.31975480731455
+      }
+    },
+    {
+      "id": "b498f8e6-0ad8-4c44-989c-5ec571a1a6ff",
+      "type": "message",
+      "data": {
+        "label": "4",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message"
+      },
+      "position": {
+        "x": 635.0078969137917,
+        "y": 261.36143915377056
+      }
+    },
+    {
+      "id": "9c3c0521-bd00-45d1-9fe1-ed96b8ff3c5f",
+      "type": "message",
+      "data": {
+        "label": "Новое сообщение",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message"
+      },
+      "position": {
+        "x": -168.84085655974602,
+        "y": 253.71354811764505
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-adca128d-38b2-4e00-bf6c-777c8778e7a7default-f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "source": "adca128d-38b2-4e00-bf6c-777c8778e7a7",
+      "target": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "sourceHandle": "default"
+    },
+    {
+      "id": "reactflow__edge-f2764aaf-fd8b-4c9d-beeb-839ff7c190580-3e280506-916a-43f0-8615-3c8c0e1e9c30",
+      "source": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "target": "3e280506-916a-43f0-8615-3c8c0e1e9c30",
+      "sourceHandle": "0"
+    },
+    {
+      "id": "reactflow__edge-f2764aaf-fd8b-4c9d-beeb-839ff7c190581-a5176583-d9dc-4b17-8d57-f1724303a849",
+      "source": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "target": "a5176583-d9dc-4b17-8d57-f1724303a849",
+      "sourceHandle": "1"
+    },
+    {
+      "id": "reactflow__edge-f2764aaf-fd8b-4c9d-beeb-839ff7c190582-fb804a86-a3d8-4656-a14b-08e1c32a735e",
+      "source": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "target": "fb804a86-a3d8-4656-a14b-08e1c32a735e",
+      "sourceHandle": "2"
+    },
+    {
+      "id": "reactflow__edge-f2764aaf-fd8b-4c9d-beeb-839ff7c190583-b498f8e6-0ad8-4c44-989c-5ec571a1a6ff",
+      "source": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "target": "b498f8e6-0ad8-4c44-989c-5ec571a1a6ff",
+      "sourceHandle": "3"
+    },
+    {
+      "id": "reactflow__edge-f2764aaf-fd8b-4c9d-beeb-839ff7c190584-9c3c0521-bd00-45d1-9fe1-ed96b8ff3c5f",
+      "source": "f2764aaf-fd8b-4c9d-beeb-839ff7c19058",
+      "target": "9c3c0521-bd00-45d1-9fe1-ed96b8ff3c5f",
+      "sourceHandle": "4"
+    }
+  ]
+}
