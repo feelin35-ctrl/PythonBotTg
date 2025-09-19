@@ -22,6 +22,8 @@ class BlockRegistry:
             from blocks.start_block import StartBlock
             from blocks.end_block import EndBlock
             from blocks.condition_block import ConditionBlock
+            from blocks.menu_block import MenuBlock
+            from blocks.file_block import FileBlock
 
             core_blocks = [
                 MessageBlock,
@@ -30,7 +32,9 @@ class BlockRegistry:
                 InlineButtonBlock,
                 StartBlock,
                 EndBlock,
-                ConditionBlock
+                ConditionBlock,
+                MenuBlock,
+                FileBlock
             ]
 
             for block_class in core_blocks:

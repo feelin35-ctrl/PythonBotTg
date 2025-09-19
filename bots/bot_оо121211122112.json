@@ -1,0 +1,162 @@
+{
+  "nodes": [
+    {
+      "id": "bc7953ab-63f2-4303-9c79-0d031a26023f",
+      "type": "start",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 921.8542193692243,
+        "y": -274.7619274044845
+      }
+    },
+    {
+      "id": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "type": "inline_button",
+      "data": {
+        "label": "Выберите вариант",
+        "url": null,
+        "images": null,
+        "buttons": [
+          {
+            "label": "Классическое меню"
+          },
+          {
+            "label": "Авторское меню"
+          },
+          {
+            "label": "Сезонное меню"
+          }
+        ],
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "inline_button",
+        "buttonLayout": "column",
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 1730.9490784584973,
+        "y": -37.80726902969493
+      }
+    },
+    {
+      "id": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "type": "inline_button",
+      "data": {
+        "label": "И тут варик",
+        "url": null,
+        "images": null,
+        "buttons": [
+          {
+            "label": "Эспрессо"
+          },
+          {
+            "label": "Американо"
+          },
+          {
+            "label": "Капучино"
+          },
+          {
+            "label": "Латте"
+          },
+          {
+            "label": "Флет вайт"
+          },
+          {
+            "label": "Раф"
+          },
+          {
+            "label": "Назад🥵"
+          }
+        ],
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "inline_button",
+        "buttonLayout": "row",
+        "buttonsPerRow": 4,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 1346.8750055213884,
+        "y": -92.46025154471158
+      }
+    },
+    {
+      "id": "93ca08ae-f8e7-4d0b-8a3a-424301661396",
+      "type": "button",
+      "data": {
+        "label": "Выберите категорию напитка",
+        "url": null,
+        "images": null,
+        "buttons": [
+          {
+            "label": "Классика"
+          },
+          {
+            "label": "Авторское"
+          },
+          {
+            "label": "Сезонное"
+          }
+        ],
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "button",
+        "buttonLayout": "row",
+        "buttonsPerRow": 4,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 975.4009102186476,
+        "y": 247.89788505748982
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-2a6553a6-1eef-41f9-9f7b-887288c116916-362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "source": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "sourceHandle": "6"
+    },
+    {
+      "id": "reactflow__edge-bc7953ab-63f2-4303-9c79-0d031a26023fdefault-93ca08ae-f8e7-4d0b-8a3a-424301661396",
+      "source": "bc7953ab-63f2-4303-9c79-0d031a26023f",
+      "target": "93ca08ae-f8e7-4d0b-8a3a-424301661396",
+      "sourceHandle": "default"
+    },
+    {
+      "id": "reactflow__edge-93ca08ae-f8e7-4d0b-8a3a-4243016613960-2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "source": "93ca08ae-f8e7-4d0b-8a3a-424301661396",
+      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "sourceHandle": "0"
+    }
+  ]
+}

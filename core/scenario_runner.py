@@ -77,8 +77,9 @@ class ScenarioRunner:
             return None
 
         try:
-            # Ответим на callback запрос
-            bot.answer_callback_query(call.id)
+            # Ответим на callback запрос (если это callback)
+            if hasattr(call, 'id'):
+                bot.answer_callback_query(call.id)
 
             # Ищем следующий узел для этой кнопки
             next_node_id = block.get_next_node_id_for_button(
@@ -88,19 +89,32 @@ class ScenarioRunner:
 
             if next_node_id:
                 logger.info(f"🔘 Нажата inline-кнопка {callback_data}, переходим к {next_node_id}")
-                # Редактируем сообщение чтобы убрать клавиатуру
-                try:
-                    bot.edit_message_reply_markup(
-                        chat_id=call.message.chat.id,
-                        message_id=call.message.message_id,
-                        reply_markup=None
-                    )
-                except:
-                    pass  # Игнорируем ошибки редактирования
+                # Редактируем сообщение чтобы убрать клавиатуру и удалить текст (только для callback)
+                if hasattr(call, 'message'):
+                    try:
+                        # Удаляем сообщение с inline-кнопками, чтобы оно не оставалось в чате
+                        bot.delete_message(
+                            chat_id=call.message.chat.id,
+                            message_id=call.message.message_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"⚠️ Не удалось удалить сообщение: {e}")
+                        # Если не удалось удалить, хотя бы убираем клавиатуру
+                        try:
+                            bot.edit_message_reply_markup(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                reply_markup=None
+                            )
+                        except:
+                            pass  # Игнорируем ошибки редактирования
 
-                return self.process_node(bot, call.message.chat.id, next_node_id)
+                # Определяем chat_id
+                chat_id = call.message.chat.id if hasattr(call, 'message') else call.chat.id
+                return self.process_node(bot, chat_id, next_node_id)
             else:
-                bot.send_message(call.message.chat.id, "Спасибо за выбор!")
+                chat_id = call.message.chat.id if hasattr(call, 'message') else call.chat.id
+                bot.send_message(chat_id, "Спасибо за выбор!")
                 return None
 
         except Exception as e:

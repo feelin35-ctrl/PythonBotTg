@@ -7,6 +7,11 @@ function BotList() {
   const [newBotName, setNewBotName] = useState("");
   const [botToken, setBotToken] = useState("");
   const [showTokenInput, setShowTokenInput] = useState(false);
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importProgress, setImportProgress] = useState("");
+  const [renamingBotId, setRenamingBotId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
   const navigate = useNavigate();
   const API_URL = "http://127.0.0.1:8001";
 
@@ -124,8 +129,142 @@ function BotList() {
     setBotToken("");
   };
 
+  const handleImportBot = async () => {
+    if (!importFile) {
+      alert("Выберите файл для импорта");
+      return;
+    }
+
+    try {
+      setImportProgress("📂 Читаем файл...");
+      
+      const fileText = await importFile.text();
+      const importData = JSON.parse(fileText);
+      
+      // Проверяем структуру данных
+      if (!importData.bot_id || !importData.scenario || !importData.token) {
+        throw new Error("Неверный формат файла для импорта");
+      }
+      
+      setImportProgress("🚀 Импортируем бота...");
+      
+      const response = await axios.post(`${API_URL}/import_bot/`, importData);
+      
+      if (response.data.status === "success") {
+        setImportProgress("");
+        setShowImportForm(false);
+        setImportFile(null);
+        
+        // Обновляем список ботов
+        await fetchBots();
+        
+        alert(`✅ ${response.data.message}\n🔖 Бот: @${response.data.bot_info?.username || 'неизвестно'}`);
+      } else {
+        throw new Error(response.data.message || "Неизвестная ошибка");
+      }
+      
+    } catch (error) {
+      setImportProgress("");
+      console.error("Ошибка импорта:", error);
+      
+      let errorMessage = "Ошибка импорта: ";
+      
+      if (error.response?.data?.message) {
+        errorMessage += error.response.data.message;
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += "Неизвестная ошибка";
+      }
+      
+      alert(errorMessage);
+    }
+  };
+
+  const handleExportBot = async (botId) => {
+    try {
+      // Используем новый endpoint для экспорта ZIP-архива
+      const response = await fetch(`${API_URL}/export_bot_zip/${botId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        // Получаем blob и создаем ссылку для скачивания
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Создаем ссылку для скачивания
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `bot_${botId}_deploy.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        alert(`✅ Бот "${botId}" экспортирован в ZIP-архив`);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Ошибка экспорта");
+      }
+      
+    } catch (error) {
+      console.error("Ошибка экспорта:", error);
+      alert("Ошибка экспорта: " + (error.message || "Неизвестная ошибка"));
+    }
+  };
+
+  const handleCancelImport = () => {
+    setShowImportForm(false);
+    setImportFile(null);
+    setImportProgress("");
+  };
+
+  const startRename = (botId) => {
+    setRenamingBotId(botId);
+    setRenameValue(botId);
+  };
+
+  const cancelRename = () => {
+    setRenamingBotId(null);
+    setRenameValue("");
+  };
+
+  const confirmRename = async () => {
+    if (!renameValue.trim()) {
+      alert("Новое имя бота не может быть пустым.");
+      return;
+    }
+
+    if (renameValue === renamingBotId) {
+      cancelRename();
+      return;
+    }
+
+    // Проверяем, что новое имя не совпадает с существующими ботами
+    if (bots.includes(renameValue)) {
+      alert(`Бот с именем "${renameValue}" уже существует.`);
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API_URL}/rename_bot/${renamingBotId}/${renameValue}/`);
+      if (response.data.status === "success") {
+        setRenamingBotId(null);
+        setRenameValue("");
+        fetchBots();
+        alert(response.data.message);
+      }
+    } catch (error) {
+      alert("Ошибка переименования: " + (error.response?.data?.detail || error.message));
+    }
+  };
+
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
       <h1>Конструктор Telegram ботов</h1>
 
       <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f9f9f9" }}>
@@ -172,6 +311,94 @@ function BotList() {
         </div>
       </div>
 
+      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f0f8ff" }}>
+        <h3>📂 Импорт бота</h3>
+        
+        {!showImportForm ? (
+          <div>
+            <p style={{ color: "#666", marginBottom: "15px" }}>
+              Импортируйте ранее экспортированного бота с полной конфигурацией
+            </p>
+            <button 
+              onClick={() => setShowImportForm(true)} 
+              style={{ 
+                padding: "10px 15px", 
+                backgroundColor: "#17a2b8", 
+                color: "white", 
+                border: "none", 
+                borderRadius: "4px", 
+                cursor: "pointer" 
+              }}
+            >
+              📂 Импортировать бота
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                Выберите файл экспорта (.json):
+              </label>
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => setImportFile(e.target.files[0])}
+                style={{ 
+                  width: "100%", 
+                  padding: "8px", 
+                  border: "1px solid #ccc", 
+                  borderRadius: "4px" 
+                }}
+              />
+            </div>
+            
+            {importProgress && (
+              <div style={{ 
+                marginBottom: "15px", 
+                padding: "10px", 
+                backgroundColor: "#e7f3ff", 
+                border: "1px solid #bee5eb", 
+                borderRadius: "4px", 
+                color: "#0c5460" 
+              }}>
+                {importProgress}
+              </div>
+            )}
+            
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button 
+                onClick={handleImportBot} 
+                disabled={!importFile || importProgress}
+                style={{ 
+                  padding: "10px 15px", 
+                  backgroundColor: importFile && !importProgress ? "#28a745" : "#6c757d", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: "4px", 
+                  cursor: importFile && !importProgress ? "pointer" : "not-allowed" 
+                }}
+              >
+                🚀 Импортировать
+              </button>
+              <button 
+                onClick={handleCancelImport}
+                disabled={importProgress}
+                style={{ 
+                  padding: "10px 15px", 
+                  backgroundColor: "#6c757d", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: "4px", 
+                  cursor: importProgress ? "not-allowed" : "pointer" 
+                }}
+              >
+                ❌ Отмена
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div>
         <h3>Мои боты ({bots.length})</h3>
         {bots.length === 0 ? (
@@ -180,15 +407,107 @@ function BotList() {
           <div style={{ border: "1px solid #ddd", borderRadius: "8px" }}>
             {bots.map((bot) => (
               <div key={bot} style={{ padding: "15px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: "bold" }}>{bot}</span>
-                <div>
-                  <button onClick={() => navigate(`/editor/${bot}`)} style={{ padding: "5px 10px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", marginRight: "5px" }}>
-                    Редактировать
-                  </button>
-                  <button onClick={() => handleDeleteBot(bot)} style={{ padding: "5px 10px", backgroundColor: "#dc3545", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                    Удалить
-                  </button>
-                </div>
+                {renamingBotId === bot ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      placeholder="Новое имя бота"
+                      style={{ flex: 1, padding: "5px", border: "1px solid #ccc", borderRadius: "4px" }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          confirmRename();
+                        } else if (e.key === 'Escape') {
+                          cancelRename();
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <button 
+                      onClick={confirmRename}
+                      style={{ padding: "5px 10px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                    >
+                      ✓
+                    </button>
+                    <button 
+                      onClick={cancelRename}
+                      style={{ padding: "5px 10px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: "bold", fontSize: "16px" }}>{bot}</span>
+                    <div style={{ display: "flex", gap: "5px" }}>
+                      <button 
+                        onClick={() => startRename(bot)}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#ffc107", 
+                          color: "black", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px"
+                        }}
+                      >
+                        ✏️ Переименовать
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/editor/${bot}`)}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#007bff", 
+                          color: "white", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px"
+                        }}
+                      >
+                        ✏️ Редактировать
+                      </button>
+                      <button 
+                        onClick={() => handleExportBot(bot)}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#17a2b8", 
+                          color: "white", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px"
+                        }}
+                      >
+                        📤 Экспорт
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteBot(bot)}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#dc3545", 
+                          color: "white", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px"
+                        }}
+                      >
+                        🗑️ Удалить
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
