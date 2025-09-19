@@ -1,0 +1,100 @@
+{
+  "nodes": [
+    {
+      "id": "bc7953ab-63f2-4303-9c79-0d031a26023f",
+      "type": "start",
+      "data": {
+        "label": "Р”РѕР±СЂРѕ РїРѕР¶Р°Р»РѕРІР°С‚СЊ!",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 300,
+        "y": 100
+      }
+    },
+    {
+      "id": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "type": "message",
+      "data": {
+        "label": "Р­С‚Рѕ РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ Р±РѕС‚! РћРЅ РіРѕС‚РѕРІ Рє СЂР°Р±РѕС‚Рµ.",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 300,
+        "y": 250
+      }
+    },
+    {
+      "id": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "type": "button",
+      "data": {
+        "label": "Р’С‹Р±РµСЂРёС‚Рµ РѕРїС†РёСЋ:",
+        "url": null,
+        "images": null,
+        "buttons": [
+          {
+            "label": "Р“Р»Р°РІРЅРѕРµ РјРµРЅСЋ"
+          },
+          {
+            "label": "РџРѕРјРѕС‰СЊ"
+          },
+          {
+            "label": "Рћ Р±РѕС‚Рµ"
+          }
+        ],
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "button",
+        "buttonLayout": "column",
+        "buttonsPerRow": 3,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 300,
+        "y": 400
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge1",
+      "source": "bc7953ab-63f2-4303-9c79-0d031a26023f",
+      "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "sourceHandle": "default"
+    },
+    {
+      "id": "edge2",
+      "source": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "sourceHandle": "default"
+    }
+  ]
+}

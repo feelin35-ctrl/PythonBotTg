@@ -1,0 +1,53 @@
+{
+  "nodes": [
+    {
+      "id": "start_node",
+      "type": "start",
+      "data": {
+        "label": "Start",
+        "blockType": "start"
+      },
+      "position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "auto_update_node",
+      "type": "auto_update",
+      "data": {
+        "label": "Check for Updates",
+        "blockType": "auto_update"
+      },
+      "position": {
+        "x": 300,
+        "y": 100
+      }
+    },
+    {
+      "id": "message_node",
+      "type": "message",
+      "data": {
+        "label": "Welcome Message",
+        "blockType": "message",
+        "text": "Hello! This bot includes auto-update functionality."
+      },
+      "position": {
+        "x": 500,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1",
+      "source": "start_node",
+      "target": "auto_update_node"
+    },
+    {
+      "id": "edge_2",
+      "source": "auto_update_node",
+      "target": "message_node"
+    }
+  ]
+}

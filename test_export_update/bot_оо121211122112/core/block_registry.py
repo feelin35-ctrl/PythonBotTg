@@ -24,7 +24,6 @@ class BlockRegistry:
             from blocks.condition_block import ConditionBlock
             from blocks.menu_block import MenuBlock
             from blocks.file_block import FileBlock
-            from blocks.auto_update_block import AutoUpdateBlock
 
             core_blocks = [
                 MessageBlock,
@@ -35,8 +34,7 @@ class BlockRegistry:
                 EndBlock,
                 ConditionBlock,
                 MenuBlock,
-                FileBlock,
-                AutoUpdateBlock
+                FileBlock
             ]
 
             for block_class in core_blocks:

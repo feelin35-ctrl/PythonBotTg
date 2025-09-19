@@ -670,12 +670,16 @@ def create_deployment_main(bot_dir: str, bot_id: str):
 # -*- coding: utf-8 -*-
 """
 Деплоймент бота "{bot_id}" для хостинга
+Автоматическое обновление из GitHub репозитория
 """
 
 import os
 import sys
 import logging
 import json
+import subprocess
+import time
+from datetime import datetime, timedelta
 
 # Добавляем текущую директорию в путь поиска модулей
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -683,7 +687,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.scenario_runner import ScenarioRunner
 from core.block_registry import block_registry
 import telebot
-import time
 import threading
 
 # Настройка логирования
@@ -696,83 +699,171 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Флаг для отслеживания необходимости перезапуска
+need_restart = False
+last_update_check = datetime.now()
+
+
+def check_for_updates():
+    """Проверяет наличие обновлений в репозитории GitHub"""
+    global need_restart, last_update_check
+    
+    # Проверяем обновления каждые 60 минут
+    if datetime.now() - last_update_check < timedelta(minutes=60):
+        return False
+    
+    last_update_check = datetime.now()
+    
+    try:
+        # Проверяем наличие git
+        result = subprocess.run(['git', '--version'], capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.info("Git не найден, пропускаем проверку обновлений")
+            return False
+        
+        # Проверяем статус репозитория
+        result = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.info("Не Git репозиторий, пропускаем проверку обновлений")
+            return False
+        
+        # Получаем последние изменения
+        subprocess.run(['git', 'fetch'], check=True)
+        
+        # Проверяем, есть ли новые коммиты
+        local_hash = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True)
+        remote_hash = subprocess.run(['git', 'rev-parse', '@{{u}}'], capture_output=True, text=True, check=True)
+        
+        if local_hash.stdout.strip() != remote_hash.stdout.strip():
+            logger.info("Найдены обновления, начинаем обновление...")
+            
+            # Выполняем обновление
+            subprocess.run(['git', 'pull'], check=True)
+            
+            # Устанавливаем зависимости
+            if os.path.exists('requirements.txt'):
+                subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'], check=True)
+            
+            logger.info("Обновление завершено, требуется перезапуск")
+            need_restart = True
+            return True
+        else:
+            logger.info("Обновлений не найдено")
+            return False
+            
+    except subprocess.CalledProcessError as ex:
+        logger.error(f"Ошибка при проверке обновлений: {{ex}}")
+        return False
+    except Exception as ex:
+        logger.error(f"Неожиданная ошибка при проверке обновлений: {{ex}}")
+        return False
+
 
 def run_bot():
     """Запускает бота"""
-    try:
-        # Загружаем конфигурацию
-        tokens_path = "bot_tokens.json"
-        if not os.path.exists(tokens_path):
-            logger.error("Файл токенов не найден")
-            return
-        
-        with open(tokens_path, "r", encoding="utf-8") as f:
-            tokens = json.load(f)
-        
-        bot_token = tokens.get("{bot_id}")
-        if not bot_token:
-            logger.error("Токен бота не найден")
-            return
-        
-        # Загружаем сценарий
-        scenario_path = f"bots/bot_{bot_id}.json"
-        if not os.path.exists(scenario_path):
-            logger.error("Файл сценария не найден")
-            return
-        
-        with open(scenario_path, "r", encoding="utf-8") as f:
-            scenario_data = json.load(f)
-        
-        # Создаем исполнитель сценария
-        scenario_runner = ScenarioRunner(scenario_data)
-        if not scenario_runner.nodes_map:
-            logger.error("Нет доступных блоков в сценарии!")
-            return
-        
-        # Создаем бота
-        bot = telebot.TeleBot(bot_token)
-        bot_info = bot.get_me()
-        logger.info(f"✅ Бот запущен: @{{bot_info.username}}")
-        
-        @bot.message_handler(commands=['start', 'help'])
-        def handle_start(message):
-            try:
-                logger.info(f"👤 /start от {{message.chat.id}} - {{message.from_user.username}}")
-                
-                # Находим стартовый узел
-                start_node = next((node_id for node_id, block in scenario_runner.nodes_map.items()
-                                   if hasattr(block, 'type') and block.type == 'start'), None)
-                if start_node:
-                    # Запускаем цепочку обработки
-                    next_node_id = scenario_runner.process_node(bot, message.chat.id, start_node)
-                    while next_node_id:
-                        # Проверяем тип следующего узла
-                        next_block = scenario_runner.nodes_map.get(next_node_id)
-                        if next_block and hasattr(next_block, 'type'):
-                            # Если это интерактивные блоки, останавливаем автоматическое выполнение
-                            if next_block.type in ['button', 'inline_button', 'input', 'menu']:
-                                scenario_runner.process_node(bot, message.chat.id, next_node_id)
-                                break
+    global need_restart
+    
+    while True:
+        try:
+            # Проверяем обновления перед запуском
+            if check_for_updates():
+                logger.info("Перезапуск бота после обновления...")
+                continue
+            
+            # Загружаем конфигурацию
+            tokens_path = "bot_tokens.json"
+            if not os.path.exists(tokens_path):
+                logger.error("Файл токенов не найден")
+                return
+            
+            with open(tokens_path, "r", encoding="utf-8") as f:
+                tokens = json.load(f)
+            
+            bot_token = tokens.get("{bot_id}")
+            if not bot_token:
+                logger.error("Токен бота не найден")
+                return
+            
+            # Загружаем сценарий
+            scenario_path = f"bots/bot_{bot_id}.json"
+            if not os.path.exists(scenario_path):
+                logger.error("Файл сценария не найден")
+                return
+            
+            with open(scenario_path, "r", encoding="utf-8") as f:
+                scenario_data = json.load(f)
+            
+            # Создаем исполнитель сценария
+            scenario_runner = ScenarioRunner(scenario_data)
+            if not scenario_runner.nodes_map:
+                logger.error("Нет доступных блоков в сценарии!")
+                return
+            
+            # Создаем бота
+            bot = telebot.TeleBot(bot_token)
+            bot_info = bot.get_me()
+            logger.info(f"✅ Бот запущен: @{{bot_info.username}}")
+            
+            @bot.message_handler(commands=['start', 'help'])
+            def handle_start(message):
+                try:
+                    logger.info(f"👤 /start от {{message.chat.id}} - {{message.from_user.username}}")
+                    
+                    # Находим стартовый узел
+                    start_node = next((node_id for node_id, block in scenario_runner.nodes_map.items()
+                                       if hasattr(block, 'type') and block.type == 'start'), None)
+                    if start_node:
+                        # Запускаем цепочку обработки
+                        next_node_id = scenario_runner.process_node(bot, message.chat.id, start_node)
+                        while next_node_id:
+                            # Проверяем тип следующего узла
+                            next_block = scenario_runner.nodes_map.get(next_node_id)
+                            if next_block and hasattr(next_block, 'type'):
+                                # Если это интерактивные блоки, останавливаем автоматическое выполнение
+                                if next_block.type in ['button', 'inline_button', 'input', 'menu']:
+                                    scenario_runner.process_node(bot, message.chat.id, next_node_id)
+                                    break
+                                else:
+                                    # Продолжаем для обычных блоков
+                                    scenario_runner.process_node(bot, message.chat.id, next_node_id)
+                                    next_node_id = scenario_runner.get_next_node_id(next_node_id)
                             else:
-                                # Продолжаем для обычных блоков
                                 scenario_runner.process_node(bot, message.chat.id, next_node_id)
                                 next_node_id = scenario_runner.get_next_node_id(next_node_id)
-                        else:
-                            scenario_runner.process_node(bot, message.chat.id, next_node_id)
-                            next_node_id = scenario_runner.get_next_node_id(next_node_id)
-                else:
-                    bot.send_message(message.chat.id, "🚀 Бот запущен! Напишите что-нибудь.")
-            except Exception as e:
-                logger.error(f"❌ Ошибка в /start: {{e}}")
-        
-        # Добавляем обработчики для остальных типов блоков (кнопки, inline-кнопки и т.д.)
-        # ... (остальные обработчики можно добавить при необходимости)
-        
-        logger.info("🤖 Бот запущен и ожидает сообщений...")
-        bot.polling(none_stop=True)
-        
-    except Exception as e:
-        logger.error(f"❌ Ошибка запуска бота: {{e}}")
+                    else:
+                        bot.send_message(message.chat.id, "🚀 Бот запущен! Напишите что-нибудь.")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка в /start: {{e}}")
+            
+            # Добавляем обработчики для остальных типов блоков (кнопки, inline-кнопки и т.д.)
+            # ... (остальные обработчики можно добавить при необходимости)
+            
+            logger.info("🤖 Бот запущен и ожидает сообщений...")
+            
+            # Запускаем polling в отдельном потоке для возможности проверки обновлений
+            def polling_thread():
+                bot.polling(none_stop=True)
+            
+            poll_thread = threading.Thread(target=polling_thread)
+            poll_thread.daemon = True
+            poll_thread.start()
+            
+            # Проверяем обновления каждые 10 минут в основном потоке
+            while poll_thread.is_alive():
+                time.sleep(600)  # 10 минут
+                if check_for_updates():
+                    logger.info("Перезапуск бота после обновления...")
+                    bot.stop_polling()
+                    break
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка запуска бота: {{e}}")
+            
+            # Ждем перед повторной попыткой
+            time.sleep(10)
+            
+        # Если мы дошли до этой точки, значит бот остановился
+        break
 
 
 if __name__ == "__main__":
@@ -822,6 +913,33 @@ def create_readme(bot_dir: str, bot_id: str):
    ```bash
    python main.py
    ```
+
+## Автоматическое обновление из GitHub
+
+Бот поддерживает автоматическое обновление из репозитория GitHub. Для включения этой функции:
+
+1. Создайте репозиторий на GitHub для вашего бота
+2. Инициализируйте Git репозиторий в папке бота:
+   ```bash
+   git init
+   git remote add origin <URL_вашего_репозитория>
+   git add .
+   git commit -m "Initial commit"
+   git push -u origin main
+   ```
+
+3. Убедитесь, что на сервере установлен Git
+
+4. Бот будет автоматически проверять наличие обновлений каждые 60 минут
+
+5. При наличии обновлений бот:
+   - Выполнит `git pull` для получения последних изменений
+   - Установит новые зависимости из requirements.txt (если есть)
+   - Перезапустится для применения изменений
+
+## Ручная проверка обновлений
+
+Вы также можете вручную проверить обновления, отправив боту команду `/update` (если реализована такая функция) или перезапустив бота.
 
 ## Развертывание на хостинге
 
