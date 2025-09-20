@@ -35,7 +35,7 @@ app = FastAPI()
 # ✅ Разрешаем запросы с фронта
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002", "http://127.0.0.1:3002", "http://localhost:3003", "http://127.0.0.1:3003"],
+    allow_origins=["http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002", "http://127.0.0.1:3002", "http://localhost:3003", "http://127.0.0.1:3003", "http://45.150.9.70:8001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -306,6 +306,7 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                         logger.info(f"⏹️ Бот {bot_id} остановлен, игнорируем команду Назад")
                         return
                         
+                        
                     logger.info(f"↩️ Команда 'Назад' от {message.chat.id}")
                     
                     # Получаем предыдущий узел
@@ -526,7 +527,7 @@ def read_root():
     return {"message": "Telegram Bot Constructor API"}
 
 
-@app.post("/import_bot/")
+@app.post("/api/import_bot/")
 def import_bot(import_data: BotImportData):
     """Импортирует бота из переданных данных"""
     try:
@@ -591,7 +592,7 @@ def import_bot(import_data: BotImportData):
         return {"status": "error", "message": f"Ошибка импорта: {str(e)}"}
 
 
-@app.post("/export_bot_zip/{bot_id}/")
+@app.post("/api/export_bot_zip/{bot_id}/")
 def export_bot_zip(bot_id: str):
     """Экспортирует бота в виде ZIP-архива с полным кодом для развертывания"""
     try:
@@ -1015,7 +1016,7 @@ def create_readme(bot_dir: str, bot_id: str):
         f.write(readme_content)
 
 
-@app.get("/get_bots/")
+@app.get("/api/get_bots/")
 def get_bots():
     bots = []
     # Явно указываем кодировку для чтения файлов
@@ -1048,7 +1049,7 @@ def get_bots():
     return Response(content=response_json, media_type="application/json; charset=utf-8")
 
 
-@app.post("/create_bot/")
+@app.post("/api/create_bot/")
 def create_bot(bot_id: str):
     path = bot_file(bot_id)
     if os.path.exists(path):
@@ -1057,21 +1058,21 @@ def create_bot(bot_id: str):
     return {"status": "success"}
 
 
-@app.get("/get_scenario/{bot_id}/")
+@app.get("/api/get_scenario/{bot_id}/")
 def get_scenario(bot_id: str):
     scenario = load_scenario(bot_id)
     # Явно указываем кодировку UTF-8 в заголовках ответа
     return scenario
 
 
-@app.post("/save_scenario/{bot_id}/")
+@app.post("/api/save_scenario/{bot_id}/")
 def save_bot_scenario(bot_id: str, scenario: Scenario):
     logger.info(f"💾 Сохраняем сценарий для бота {bot_id}")
     save_scenario(bot_id, scenario)
     return {"status": "success"}
 
 
-@app.delete("/delete_bot/{bot_id}/")
+@app.delete("/api/delete_bot/{bot_id}/")
 def delete_bot(bot_id: str):
     file_path = bot_file(bot_id)
     if os.path.exists(file_path):
@@ -1090,7 +1091,7 @@ def delete_bot(bot_id: str):
     raise HTTPException(status_code=404, detail=f"Бот {bot_id} не найден.")
 
 
-@app.post("/save_token/{bot_id}/")
+@app.post("/api/save_token/{bot_id}/")
 def save_bot_token(bot_id: str, token_data: Dict[str, str]):
     tokens = load_tokens()
     tokens[bot_id] = token_data.get("token", "")
@@ -1099,7 +1100,7 @@ def save_bot_token(bot_id: str, token_data: Dict[str, str]):
     return {"status": "success"}
 
 
-@app.get("/get_token/{bot_id}/")
+@app.get("/api/get_token/{bot_id}/")
 def get_bot_token(bot_id: str):
     tokens = load_tokens()
     token = tokens.get(bot_id, "")
@@ -1107,7 +1108,7 @@ def get_bot_token(bot_id: str):
 
 
 # Добавляем новые эндпоинты для управления именем бота
-@app.post("/set_bot_name/{bot_id}/")
+@app.post("/api/set_bot_name/{bot_id}/")
 def set_bot_name(bot_id: str, name_data: Dict[str, str]):
     """Устанавливает имя бота в Telegram"""
     try:
@@ -1142,7 +1143,7 @@ def set_bot_name(bot_id: str, name_data: Dict[str, str]):
         raise HTTPException(status_code=500, detail=f"Ошибка установки имени бота: {str(e)}")
 
 
-@app.get("/get_bot_name/{bot_id}/")
+@app.get("/api/get_bot_name/{bot_id}/")
 def get_bot_name(bot_id: str):
     """Получает текущее имя бота из Telegram"""
     try:
@@ -1169,7 +1170,7 @@ def get_bot_name(bot_id: str):
         raise HTTPException(status_code=500, detail=f"Ошибка получения имени бота: {str(e)}")
 
 
-@app.delete("/delete_token/{bot_id}/")
+@app.delete("/api/delete_token/{bot_id}/")
 def delete_bot_token(bot_id: str):
     tokens = load_tokens()
     if bot_id in tokens:
@@ -1179,7 +1180,7 @@ def delete_bot_token(bot_id: str):
     return {"status": "error", "message": "Токен не найден"}
 
 
-@app.get("/check_token/{token}/")
+@app.get("/api/check_token/{token}/")
 def check_token(token: str):
     try:
         if not validate_telegram_token(token):
@@ -1199,7 +1200,7 @@ def check_token(token: str):
         return {"valid": False, "message": f"Ошибка: {str(e)}"}
 
 
-@app.get("/check_bot/{token}/")
+@app.get("/api/check_bot/{token}/")
 def check_bot(token: str):
     """Проверяет, доступен ли бот с данным токеном"""
     try:
@@ -1215,7 +1216,7 @@ def check_bot(token: str):
         return {"status": "error", "message": str(e)}
 
 
-@app.get("/available_blocks/")
+@app.get("/api/available_blocks/")
 def get_available_blocks():
     """Возвращает список доступных типов блоков"""
     try:
@@ -1226,7 +1227,7 @@ def get_available_blocks():
         return {"blocks": []}
 
 
-@app.post("/run_bot/{bot_id}/")
+@app.post("/api/run_bot/{bot_id}/")
 def run_bot(bot_id: str, token: Dict[str, str]):
     if bot_id in running_bots and running_bots[bot_id].is_alive():
         return {"status": "error", "message": "Бот уже запущен."}
@@ -1277,7 +1278,7 @@ def run_bot(bot_id: str, token: Dict[str, str]):
         return {"status": "error", "message": f"Ошибка запуска: {str(e)}"}
 
 
-@app.post("/restart_bot/{bot_id}/")
+@app.post("/api/restart_bot/{bot_id}/")
 def restart_bot(bot_id: str):
     """Останавливает и перезапускает бота"""
     try:
@@ -1364,7 +1365,7 @@ def restart_bot(bot_id: str):
         return {"status": "error", "message": f"Ошибка перезапуска: {str(e)}"}
 
 
-@app.get("/stop_bot/{bot_id}/")
+@app.get("/api/stop_bot/{bot_id}/")
 def stop_bot(bot_id: str):
     try:
         if bot_id not in running_bots:
@@ -1413,7 +1414,7 @@ def stop_bot(bot_id: str):
         return {"status": "error", "message": f"Ошибка остановки: {str(e)}"}
 
 
-@app.get("/health/")
+@app.get("/api/health/")
 def health_check():
     return {
         "status": "healthy",
@@ -1423,7 +1424,7 @@ def health_check():
     }
 
 
-@app.get("/bot_status/")
+@app.get("/api/bot_status/")
 def get_bot_status():
     statuses = {}
     for bot_id, thread in running_bots.items():
@@ -1433,13 +1434,13 @@ def get_bot_status():
         }
     return statuses
 
-@app.get("/bot_running_status/{bot_id}/")
+@app.get("/api/bot_running_status/{bot_id}/")
 def get_bot_running_status(bot_id: str):
     """Проверяет, запущен ли бот"""
     is_running = bot_id in running_bots and running_bots[bot_id].is_alive()
     return {"is_running": is_running}
 
-@app.get("/bot_info/{bot_id}/")
+@app.get("/api/bot_info/{bot_id}/")
 def get_bot_info(bot_id: str):
     scenario = load_scenario(bot_id)
     tokens = load_tokens()
@@ -1461,7 +1462,7 @@ def get_bot_info(bot_id: str):
     }
 
 
-@app.post("/rename_bot/{old_bot_id}/{new_bot_id}/")
+@app.post("/api/rename_bot/{old_bot_id}/{new_bot_id}/")
 def rename_bot(old_bot_id: str, new_bot_id: str):
     """Переименовывает бота"""
     try:
