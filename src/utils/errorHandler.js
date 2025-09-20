@@ -24,4 +24,26 @@ export const setupErrorHandling = () => {
   };
 
   ignoreResizeObserverErrors();
+  
+  // Добавляем обработчик необработанных ошибок
+  window.addEventListener('error', (event) => {
+    // Игнорируем ошибки сценариев из внешних источников
+    if (event.message.includes('Script error') && !event.filename) {
+      return;
+    }
+    
+    // Логируем ошибку в консоль
+    console.error('Global error caught:', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error
+    });
+  });
+  
+  // Добавляем обработчик необработанных отклонений промисов
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+  });
 };

@@ -49,3 +49,26 @@
 .react-flow__edge {
   transition: none !important;
 }
+
+/* Адаптивные стили для редактора */
+@media (max-width: 768px) {
+  .react-flow__controls {
+    transform: scale(0.8);
+    transform-origin: bottom left;
+  }
+  
+  .react-flow__minimap {
+    transform: scale(0.8);
+    transform-origin: bottom right;
+  }
+}
+
+@media (max-width: 480px) {
+  .react-flow__controls {
+    transform: scale(0.7);
+  }
+  
+  .react-flow__minimap {
+    transform: scale(0.7);
+  }
+}

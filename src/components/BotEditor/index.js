@@ -3,12 +3,14 @@ import ReactFlow, { Background, Controls } from 'reactflow';
 import SidebarComponent from '../Sidebar';
 import ControlPanel from '../ControlPanel';
 import { EditableNode } from '../NodeTypes';
+import { nodeTypes as registeredNodeTypes } from '../NodeTypes/index';
 import { useBotEditor } from './useBotEditor';
 import 'reactflow/dist/style.css';
 import CustomBackground from '../CustomBackground';
 
 const nodeTypes = {
   editable: EditableNode,
+  ...registeredNodeTypes
 };
 
 const BotEditor = () => {
@@ -18,6 +20,8 @@ const BotEditor = () => {
     edges,
     botToken,
     setBotToken,
+    botName, // Получаем имя бота
+    setBotName, // Получаем функцию для установки имени бота
     isBotRunning,
     loadingStatus,
     onDataChange,
@@ -26,6 +30,7 @@ const BotEditor = () => {
     deleteAllNodes,
     saveScenario,
     saveToken,
+    saveBotName, // Получаем функцию сохранения имени бота
     runBot,
     restartBot,
     stopBot, // ← Новая функция остановки
@@ -77,7 +82,10 @@ const BotEditor = () => {
         <ControlPanel
           botToken={botToken}
           setBotToken={setBotToken}
+          botName={botName} // Передаем имя бота
+          setBotName={setBotName} // Передаем функцию для установки имени бота
           onSaveToken={saveToken}
+          onSaveBotName={saveBotName} // Передаем функцию сохранения имени бота
           onSaveScenario={saveScenario}
           onDeleteSelected={deleteSelectedNodes}
           onDeleteAll={deleteAllNodes}

@@ -1,30 +1,6 @@
 {
   "nodes": [
     {
-      "id": "bc7953ab-63f2-4303-9c79-0d031a26023f",
-      "type": "start",
-      "data": {
-        "label": "",
-        "url": null,
-        "images": null,
-        "buttons": null,
-        "condition": null,
-        "variableName": null,
-        "method": null,
-        "payload": null,
-        "target_node": null,
-        "onChange": null,
-        "blockType": "start",
-        "buttonLayout": null,
-        "buttonsPerRow": null,
-        "hideKeyboard": null
-      },
-      "position": {
-        "x": 921.8542193692243,
-        "y": -274.7619274044845
-      }
-    },
-    {
       "id": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
       "type": "inline_button",
       "data": {
@@ -40,6 +16,9 @@
           },
           {
             "label": "Сезонное меню"
+          },
+          {
+            "label": "Назад"
           }
         ],
         "condition": null,
@@ -49,8 +28,8 @@
         "target_node": null,
         "onChange": null,
         "blockType": "inline_button",
-        "buttonLayout": "column",
-        "buttonsPerRow": null,
+        "buttonLayout": "row",
+        "buttonsPerRow": 2,
         "hideKeyboard": null
       },
       "position": {
@@ -100,8 +79,8 @@
         "hideKeyboard": null
       },
       "position": {
-        "x": 1250.281300232876,
-        "y": -162.7872475003829
+        "x": 1278.281300232876,
+        "y": -76.78724750038288
       }
     },
     {
@@ -137,26 +116,50 @@
         "x": 912.699733101543,
         "y": -121.53067201085585
       }
+    },
+    {
+      "id": "3cb9f441-735a-4375-8d24-4c1bf3ddb371",
+      "type": "start",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 939.8244057800202,
+        "y": -302.7745874524337
+      }
     }
   ],
   "edges": [
+    {
+      "id": "reactflow__edge-3cb9f441-735a-4375-8d24-4c1bf3ddb371main-362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "source": "3cb9f441-735a-4375-8d24-4c1bf3ddb371",
+      "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "reactflow__edge-362e0e15-7a4a-4e5c-b5a3-7db586d90cef0-2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "source": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
+      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "sourceHandle": "0"
+    },
     {
       "id": "reactflow__edge-2a6553a6-1eef-41f9-9f7b-887288c116916-362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
       "source": "2a6553a6-1eef-41f9-9f7b-887288c11691",
       "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
       "sourceHandle": "6"
-    },
-    {
-      "id": "reactflow__edge-bc7953ab-63f2-4303-9c79-0d031a26023fdefault-93ca08ae-f8e7-4d0b-8a3a-424301661396",
-      "source": "bc7953ab-63f2-4303-9c79-0d031a26023f",
-      "target": "93ca08ae-f8e7-4d0b-8a3a-424301661396",
-      "sourceHandle": "default"
-    },
-    {
-      "id": "reactflow__edge-93ca08ae-f8e7-4d0b-8a3a-4243016613960-2a6553a6-1eef-41f9-9f7b-887288c11691",
-      "source": "93ca08ae-f8e7-4d0b-8a3a-424301661396",
-      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
-      "sourceHandle": "0"
     }
   ]
 }

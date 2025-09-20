@@ -16,6 +16,8 @@ export const colors = {
   handoff: "#ccffcc",
   menu: "#ffb347",
   file: "#d4d4aa",
+  nlp_response: "#f0f8ff",
+  delay: "#ffe4b5",
 };
 
 export const nodeLabels = {
@@ -36,6 +38,91 @@ export const nodeLabels = {
   handoff: "На оператора",
   menu: "Меню",
   file: "Файлы",
+  nlp_response: "NLP Ответ",
+  delay: "Задержка",
 };
 
 export const nodeTypes = Object.keys(nodeLabels);
+
+// Адаптивные стили для узлов
+export const nodeStyles = {
+  mobile: {
+    width: 160,
+    padding: '6px',
+    fontSize: '11px'
+  },
+  tablet: {
+    width: 180,
+    padding: '8px',
+    fontSize: '12px'
+  },
+  desktop: {
+    width: 200,
+    padding: '10px',
+    fontSize: '14px'
+  }
+};
+
+// Адаптивные стили для панели управления
+export const controlPanelStyles = {
+  mobile: {
+    padding: '8px 10px',
+    fontSize: '12px',
+    button: {
+      padding: '4px 8px',
+      fontSize: '10px',
+      minWidth: '30px'
+    }
+  },
+  tablet: {
+    padding: '10px 15px',
+    fontSize: '14px',
+    button: {
+      padding: '6px 10px',
+      fontSize: '12px',
+      minWidth: '40px'
+    }
+  },
+  desktop: {
+    padding: '10px 15px',
+    fontSize: '14px',
+    button: {
+      padding: '6px 10px',
+      fontSize: '12px',
+      minWidth: '40px'
+    }
+  }
+};
+
+// Адаптивные стили для боковой панели
+export const sidebarStyles = {
+  mobile: {
+    width: '100%',
+    maxHeight: '200px',
+    padding: '10px'
+  },
+  tablet: {
+    width: '250px',
+    padding: '15px'
+  },
+  desktop: {
+    width: '250px',
+    padding: '15px'
+  }
+};
+
+// Адаптивные стили для списка ботов
+export const botListStyles = {
+  mobile: {
+    gridColumns: '1fr',
+    gap: '10px'
+  },
+  tablet: {
+    gridColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '15px'
+  },
+  desktop: {
+    gridColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '20px'
+  }
+};

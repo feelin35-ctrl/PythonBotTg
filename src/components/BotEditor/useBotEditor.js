@@ -13,6 +13,7 @@ export const useBotEditor = () => {
   const [initialNodes, setInitialNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const [botToken, setBotToken] = useState('');
+  const [botName, setBotName] = useState(''); // Добавляем состояние для имени бота
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
@@ -106,7 +107,10 @@ export const useBotEditor = () => {
     const selectedEdges = edges.filter(edge => edge.selected);
     
     if (selectedNodes.length === 0 && selectedEdges.length === 0) {
-      alert("Выберите элемент(ы) для удаления");
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Выберите элемент(ы) для удаления");
+      }
       return;
     }
 
@@ -167,6 +171,7 @@ export const useBotEditor = () => {
   useEffect(() => {
     axios.get(`http://127.0.0.1:8001/get_scenario/${botId}/`)
       .then((res) => {
+        console.log('Loaded scenario data:', res.data);
         const loadedNodes = (res.data.nodes || []).map(n => ({
           ...n,
           type: "editable",
@@ -190,14 +195,36 @@ export const useBotEditor = () => {
           },
         }));
 
+        console.log('Processed nodes:', loadedNodes);
+        console.log('Processed edges:', loadedEdges);
+
         setInitialNodes(loadedNodes);
         setEdges(loadedEdges);
       })
-      .catch(console.error);
+      .catch(error => {
+        console.error('Error loading scenario:', error);
+      });
 
     axios.get(`http://127.0.0.1:8001/get_token/${botId}/`)
-      .then(res => setBotToken(res.data.token || ''))
+      .then(res => {
+        console.log('Loaded bot token:', res.data.token);
+        setBotToken(res.data.token || '');
+      })
       .catch(console.error);
+      
+    // Загружаем имя бота
+    axios.get(`http://127.0.0.1:8001/get_bot_name/${botId}/`)
+      .then(res => {
+        if (res.data.status === 'success') {
+          console.log('Loaded bot name:', res.data.name);
+          setBotName(res.data.name || '');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading bot name:', error);
+        // Если не удалось получить имя, оставляем пустым
+        setBotName('');
+      });
   }, [botId, onDataChange]);
 
   const saveScenario = useCallback(() => {
@@ -212,30 +239,104 @@ export const useBotEditor = () => {
       nodes: cleanNodes,
       edges: cleanEdges,
     })
-    .then(() => alert("Сценарий сохранен!"))
-    .catch(err => alert("Ошибка сохранения: " + err.message));
+    .then(() => {
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Сценарий сохранен!");
+      } else {
+        console.log("Сценарий сохранен");
+      }
+    })
+    .catch(err => {
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка сохранения: " + err.message);
+      } else {
+        console.error("Ошибка сохранения:", err);
+      }
+    });
   }, [botId, initialNodes, edges]);
 
   const saveToken = useCallback(() => {
     axios.post(`http://127.0.0.1:8001/save_token/${botId}/`, { token: botToken })
-      .then(() => alert("Токен сохранен!"))
-      .catch(err => alert("Ошибка сохранения токена: " + err.message));
+      .then(() => {
+        // На мобильных устройствах показываем уведомление через alert
+        if (window.innerWidth <= 768) {
+          alert("Токен сохранен!");
+        } else {
+          console.log("Токен сохранен");
+        }
+      })
+      .catch(err => {
+        // На мобильных устройствах показываем уведомление через alert
+        if (window.innerWidth <= 768) {
+          alert("Ошибка сохранения токена: " + err.message);
+        } else {
+          console.error("Ошибка сохранения токена:", err);
+        }
+      });
   }, [botId, botToken]);
+
+  // Функция для сохранения имени бота
+  const saveBotName = useCallback(async () => {
+    if (!botName.trim()) {
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Имя бота не может быть пустым");
+      } else {
+        console.log("Имя бота не может быть пустым");
+      }
+      return;
+    }
+
+    try {
+      const response = await axios.post(`http://127.0.0.1:8001/set_bot_name/${botId}/`, { name: botName });
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert(response.data.message);
+      } else {
+        console.log(response.data.message);
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message;
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка сохранения имени бота: " + errorMessage);
+      } else {
+        console.error("Ошибка сохранения имени бота:", errorMessage);
+      }
+    }
+  }, [botId, botName]);
 
   const runBot = useCallback(async () => {
     if (!botToken) {
-      alert("Сначала сохраните токен");
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Сначала сохраните токен");
+      } else {
+        console.log("Сначала сохраните токен");
+      }
       return;
     }
 
     setLoadingStatus(true);
     try {
       const response = await axios.post(`http://127.0.0.1:8001/run_bot/${botId}/`, { token: botToken });
-      alert(response.data.message);
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert(response.data.message);
+      } else {
+        console.log(response.data.message);
+      }
       // После запуска проверяем статус
       setTimeout(checkBotStatus, 1000);
     } catch (err) {
-      alert("Ошибка запуска: " + (err.response?.data?.message || err.message));
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка запуска: " + (err.response?.data?.message || err.message));
+      } else {
+        console.error("Ошибка запуска:", err.response?.data?.message || err.message);
+      }
     } finally {
       setLoadingStatus(false);
     }
@@ -244,18 +345,33 @@ export const useBotEditor = () => {
   // Функция перезапуска бота
   const restartBot = useCallback(async () => {
     if (!botToken) {
-      alert("Сначала сохраните токен");
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Сначала сохраните токен");
+      } else {
+        console.log("Сначала сохраните токен");
+      }
       return;
     }
 
     setLoadingStatus(true);
     try {
       const response = await axios.post(`http://127.0.0.1:8001/restart_bot/${botId}/`);
-      alert(response.data.message);
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert(response.data.message);
+      } else {
+        console.log(response.data.message);
+      }
       // После перезапуска проверяем статус
       setTimeout(checkBotStatus, 1000);
     } catch (err) {
-      alert("Ошибка перезапуска: " + (err.response?.data?.message || err.message));
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка перезапуска: " + (err.response?.data?.message || err.message));
+      } else {
+        console.error("Ошибка перезапуска:", err.response?.data?.message || err.message);
+      }
     } finally {
       setLoadingStatus(false);
     }
@@ -266,18 +382,35 @@ export const useBotEditor = () => {
     setLoadingStatus(true);
     try {
       const response = await axios.get(`http://127.0.0.1:8001/stop_bot/${botId}/`);
-      alert(response.data.message);
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert(response.data.message);
+      } else {
+        console.log(response.data.message);
+      }
       // После остановки проверяем статус
       setTimeout(checkBotStatus, 1000);
     } catch (err) {
-      alert("Ошибка остановки: " + (err.response?.data?.message || err.message));
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка остановки: " + (err.response?.data?.message || err.message));
+      } else {
+        console.error("Ошибка остановки:", err.response?.data?.message || err.message);
+      }
     } finally {
       setLoadingStatus(false);
     }
   }, [botId, checkBotStatus]);
 
   const onNodesChange = useCallback(
-    changes => setInitialNodes(nds => applyNodeChanges(changes, nds)),
+    changes => {
+      console.log('Nodes changed:', changes);
+      setInitialNodes(nds => {
+        const updatedNodes = applyNodeChanges(changes, nds);
+        console.log('Updated nodes:', updatedNodes);
+        return updatedNodes;
+      });
+    },
     []
   );
 
@@ -318,6 +451,8 @@ export const useBotEditor = () => {
     edges,
     botToken,
     setBotToken,
+    botName, // Возвращаем имя бота
+    setBotName, // Возвращаем функцию для установки имени бота
     isBotRunning,
     loadingStatus,
     onDataChange,
@@ -326,6 +461,7 @@ export const useBotEditor = () => {
     deleteAllNodes,
     saveScenario,
     saveToken,
+    saveBotName, // Возвращаем функцию сохранения имени бота
     runBot,
     restartBot,
     stopBot,

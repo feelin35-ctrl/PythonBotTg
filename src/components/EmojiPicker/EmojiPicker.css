@@ -135,7 +135,7 @@
 }
 
 /* Адаптивность для мобильных устройств */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .emoji-picker {
     width: 280px;
     max-height: 350px;
@@ -149,5 +149,34 @@
     width: 28px;
     height: 28px;
     font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .emoji-picker {
+    width: 240px;
+    max-height: 300px;
+  }
+  
+  .emoji-grid {
+    grid-template-columns: repeat(6, 1fr);
+    padding: 8px;
+    gap: 3px;
+  }
+  
+  .emoji-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+  }
+  
+  .emoji-search {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .category-btn {
+    padding: 6px 10px;
+    font-size: 10px;
   }
 }

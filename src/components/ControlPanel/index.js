@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { controlPanelStyles } from './styles';
+import React, { useState, useEffect } from 'react';
+import { controlPanelStyles, mobileControlPanelStyles } from './styles';
 
 const ControlPanel = ({
   botToken,
   setBotToken,
+  botName, // Получаем имя бота
+  setBotName, // Получаем функцию для установки имени бота
   onSaveToken,
+  onSaveBotName, // Получаем функцию сохранения имени бота
   onSaveScenario,
   onDeleteSelected,
   onDeleteAll,
@@ -24,8 +27,23 @@ const ControlPanel = ({
   loadingStatus // ← Состояние загрузки
 }) => {
   const [showTokenInput, setShowTokenInput] = useState(false);
+  const [showBotNameInput, setShowBotNameInput] = useState(false); // Состояние для отображения поля имени бота
   const [showStats, setShowStats] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Отслеживаем изменение размера экрана
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Используем разные стили для мобильных и десктопных устройств
+  const styles = isMobile ? mobileControlPanelStyles : controlPanelStyles;
 
   const handleRestart = async () => {
     if (typeof onRestartBot !== 'function') {
@@ -61,25 +79,25 @@ const ControlPanel = ({
   };
 
   return (
-    <div style={controlPanelStyles.panel}>
+    <div style={styles.panel}>
       {/* Индикатор статуса бота */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        marginRight: '10px',
-        padding: '4px 8px',
+        marginRight: '5px',
+        padding: isMobile ? '3px 6px' : '4px 8px',
         borderRadius: '12px',
         background: isBotRunning ? '#28a745' : '#dc3545',
         color: 'white',
-        fontSize: '12px',
+        fontSize: isMobile ? '10px' : '12px',
         fontWeight: 'bold'
       }} title={isBotRunning ? 'Бот запущен' : 'Бот остановлен'}>
         <div style={{
-          width: '8px',
-          height: '8px',
+          width: isMobile ? '6px' : '8px',
+          height: isMobile ? '6px' : '8px',
           borderRadius: '50%',
           background: 'white',
-          marginRight: '6px',
+          marginRight: isMobile ? '4px' : '6px',
           animation: isBotRunning ? 'pulse 1.5s infinite' : 'none'
         }} />
         {isBotRunning ? 'ON' : 'OFF'}
@@ -87,24 +105,24 @@ const ControlPanel = ({
 
       {/* Кнопка назад */}
       <button onClick={onNavigateBack} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.secondaryButton
+        ...styles.button,
+        ...styles.secondaryButton
       }} title="Назад к списку">
         ⬅
       </button>
 
       {/* Управление историей */}
       <button onClick={onUndo} disabled={!canUndo} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.secondaryButton,
+        ...styles.button,
+        ...styles.secondaryButton,
         opacity: canUndo ? 1 : 0.5
       }} title="Отменить (Ctrl+Z)">
         ↩️
       </button>
 
       <button onClick={onRedo} disabled={!canRedo} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.secondaryButton,
+        ...styles.button,
+        ...styles.secondaryButton,
         opacity: canRedo ? 1 : 0.5
       }} title="Повторить (Ctrl+Y)">
         ↪️
@@ -112,23 +130,23 @@ const ControlPanel = ({
 
       {/* Удаление */}
       <button onClick={onDeleteSelected} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.dangerButton
+        ...styles.button,
+        ...styles.dangerButton
       }} title="Удалить выбранные блоки и связи (Delete)">
         🗑️
       </button>
 
       <button onClick={onDeleteAll} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.warningButton
+        ...styles.button,
+        ...styles.warningButton
       }} title="Удалить все блоки">
         🗑️ ALL
       </button>
 
       {/* Сохранение */}
       <button onClick={onSaveScenario} style={{
-        ...controlPanelStyles.button,
-        ...controlPanelStyles.primaryButton
+        ...styles.button,
+        ...styles.primaryButton
       }} title="Сохранить сценарий">
         💾
       </button>
@@ -136,14 +154,14 @@ const ControlPanel = ({
       {/* Управление токеном */}
       <div style={{ position: "relative" }}>
         <button onClick={() => setShowTokenInput(!showTokenInput)} style={{
-          ...controlPanelStyles.button,
-          ...controlPanelStyles.successButton
+          ...styles.button,
+          ...styles.successButton
         }} title="Управление токеном">
           🔑
         </button>
 
         {showTokenInput && (
-          <div style={controlPanelStyles.dropdown}>
+          <div style={styles.dropdown}>
             <input
               type="password"
               value={botToken}
@@ -151,19 +169,55 @@ const ControlPanel = ({
               placeholder="Токен бота"
               style={{
                 width: "100%",
-                padding: "6px",
+                padding: isMobile ? "4px" : "6px",
                 border: "1px solid #ccc",
                 borderRadius: "4px",
                 marginBottom: "5px",
-                fontSize: "12px"
+                fontSize: isMobile ? "10px" : "12px"
               }}
             />
             <button onClick={onSaveToken} style={{
-              ...controlPanelStyles.button,
-              ...controlPanelStyles.successButton,
+              ...styles.button,
+              ...styles.successButton,
               width: "100%"
             }}>
               Сохранить токен
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Управление именем бота */}
+      <div style={{ position: "relative" }}>
+        <button onClick={() => setShowBotNameInput(!showBotNameInput)} style={{
+          ...styles.button,
+          ...styles.infoButton
+        }} title="Управление именем бота">
+          📝
+        </button>
+
+        {showBotNameInput && (
+          <div style={styles.dropdown}>
+            <input
+              type="text"
+              value={botName}
+              onChange={(e) => setBotName(e.target.value)}
+              placeholder="Имя бота"
+              style={{
+                width: "100%",
+                padding: isMobile ? "4px" : "6px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                marginBottom: "5px",
+                fontSize: isMobile ? "10px" : "12px"
+              }}
+            />
+            <button onClick={onSaveBotName} style={{
+              ...styles.button,
+              ...styles.infoButton,
+              width: "100%"
+            }}>
+              Сохранить имя
             </button>
           </div>
         )}
@@ -174,8 +228,8 @@ const ControlPanel = ({
         onClick={onRunBot}
         disabled={loadingStatus || isBotRunning || !botToken}
         style={{
-          ...controlPanelStyles.button,
-          ...controlPanelStyles.infoButton,
+          ...styles.button,
+          ...styles.infoButton,
           opacity: (loadingStatus || isBotRunning || !botToken) ? 0.6 : 1
         }}
         title={!botToken ? "Сначала сохраните токен" : isBotRunning ? "Бот уже запущен" : "Запустить бота"}
@@ -188,8 +242,8 @@ const ControlPanel = ({
         onClick={handleRestart}
         disabled={loadingStatus || !isBotRunning || !botToken}
         style={{
-          ...controlPanelStyles.button,
-          ...controlPanelStyles.warningButton,
+          ...styles.button,
+          ...styles.warningButton,
           opacity: (loadingStatus || !isBotRunning || !botToken) ? 0.6 : 1
         }}
         title={!botToken ? "Сначала сохраните токен" : !isBotRunning ? "Сначала запустите бота" : "Перезапустить бота"}
@@ -202,8 +256,8 @@ const ControlPanel = ({
         onClick={handleStop}
         disabled={loadingStatus || !isBotRunning}
         style={{
-          ...controlPanelStyles.button,
-          ...controlPanelStyles.dangerButton,
+          ...styles.button,
+          ...styles.dangerButton,
           opacity: (loadingStatus || !isBotRunning) ? 0.6 : 1
         }}
         title={!isBotRunning ? "Бот не запущен" : "Остановить бота"}
@@ -214,7 +268,7 @@ const ControlPanel = ({
       {/* Статистика */}
       <div style={{ position: "relative" }}>
         <button onClick={() => setShowStats(!showStats)} style={{
-          ...controlPanelStyles.button,
+          ...styles.button,
           background: "#f8f9fa",
           color: "#6c757d",
           border: "1px solid #dee2e6"
@@ -223,7 +277,7 @@ const ControlPanel = ({
         </button>
 
         {showStats && (
-          <div style={controlPanelStyles.dropdown}>
+          <div style={styles.dropdown}>
             <div>Блоки: {nodesCount}</div>
             <div>Связи: {edgesCount}</div>
             <div>Выбрано: {selectedCount}</div>
@@ -242,6 +296,24 @@ const ControlPanel = ({
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
+          }
+          
+          /* Скроллбар для панели управления */
+          ::-webkit-scrollbar {
+            height: 6px;
+          }
+          
+          ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+          }
+          
+          ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+          }
+          
+          ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
           }
         `}
       </style>

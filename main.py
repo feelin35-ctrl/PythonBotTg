@@ -390,6 +390,14 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                         
                     logger.info(f"💬 Сообщение от {message.chat.id}: {message.text}")
 
+                    # Передаем текст сообщения в сценарий для обработки
+                    message_context = {
+                        'user_message': message.text,
+                        'chat_id': message.chat.id,
+                        'user_id': message.from_user.id,
+                        'username': message.from_user.username
+                    }
+
                     # Проверяем, является ли сообщение нажатием на кнопку
                     for node_id, block in scenario_runner.nodes_map.items():
                         if hasattr(block, 'type') and block.type == 'button':
@@ -429,7 +437,15 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                                     if result:
                                         return
 
-                    # Если не кнопка, отправляем стандартный ответ
+                        # Проверяем блок обработки естественного языка
+                        elif hasattr(block, 'type') and block.type == 'nlp_response':
+                            logger.info(f"🧠 Обработка сообщения с помощью NLP: {message.text}")
+                            # Выполняем блок NLP с контекстом сообщения
+                            result = scenario_runner.process_node(bot, message.chat.id, node_id, **message_context)
+                            if result:
+                                return
+
+                    # Если не кнопка и нет NLP блока, отправляем стандартный ответ
                     bot.send_message(message.chat.id, "ℹ️ Используйте /start для начала")
 
                 except Exception as e:
@@ -958,7 +974,7 @@ def create_readme(bot_dir: str, bot_id: str):
 Бот использует стандартный long polling, поэтому подходит для большинства хостингов.
 
 ## Поддержка
-Если у вас возникли проблемы с развертыванием, обратитесь к документации конструктора ботов.
+Если у вас возникли проблемы с развертыванием, обратитесь к документации конструкторуктора ботов.
 '''
     
     readme_path = os.path.join(bot_dir, "README.md")
@@ -971,22 +987,26 @@ def get_bots():
     bots = []
     # Явно указываем кодировку для чтения файлов
     filenames = os.listdir(BOTS_DIR)
+    logger.info(f"Найдено файлов в директории {BOTS_DIR}: {filenames}")
     for filename in filenames:
         if filename.startswith("bot_") and filename.endswith(".json"):
             # Обрабатываем кодировку имен файлов с кириллицей
             try:
                 # Пытаемся декодировать имя файла
                 bot_id = filename.replace("bot_", "").replace(".json", "")
+                logger.info(f"Обрабатываем файл бота: {filename}, bot_id: {bot_id}")
                 # Проверяем, есть ли проблема с кодировкой
                 if 'Ð' in bot_id or 'Ñ' in bot_id:
                     # Пробуем перекодировать из latin-1 в utf-8
                     bot_id_bytes = bot_id.encode('latin-1')
                     bot_id = bot_id_bytes.decode('utf-8')
                 bots.append(bot_id)
-            except:
+            except Exception as e:
+                logger.error(f"Ошибка обработки файла {filename}: {e}")
                 # Если не удалось перекодировать, используем оригинальное имя
                 bot_id = filename.replace("bot_", "").replace(".json", "")
                 bots.append(bot_id)
+    logger.info(f"Возвращаем список ботов: {bots}")
     # Явно указываем кодировку в заголовках ответа
     import json
     response_data = {"bots": bots}
@@ -1051,6 +1071,69 @@ def get_bot_token(bot_id: str):
     tokens = load_tokens()
     token = tokens.get(bot_id, "")
     return {"token": token}
+
+
+# Добавляем новые эндпоинты для управления именем бота
+@app.post("/set_bot_name/{bot_id}/")
+def set_bot_name(bot_id: str, name_data: Dict[str, str]):
+    """Устанавливает имя бота в Telegram"""
+    try:
+        tokens = load_tokens()
+        bot_token = tokens.get(bot_id, "")
+        
+        if not bot_token:
+            raise HTTPException(status_code=404, detail="Токен бота не найден")
+        
+        bot_name = name_data.get("name", "").strip()
+        if not bot_name:
+            raise HTTPException(status_code=400, detail="Имя бота не может быть пустым")
+        
+        # Используем pyTelegramBotAPI для установки имени бота
+        bot = telebot.TeleBot(bot_token)
+        result = bot.set_my_name(bot_name)
+        
+        if result:
+            logger.info(f"✅ Имя бота '{bot_id}' успешно изменено на '{bot_name}'")
+            return {
+                "status": "success", 
+                "message": f"Имя бота успешно изменено на '{bot_name}'",
+                "name": bot_name
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Не удалось изменить имя бота")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Ошибка установки имени бота '{bot_id}': {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка установки имени бота: {str(e)}")
+
+
+@app.get("/get_bot_name/{bot_id}/")
+def get_bot_name(bot_id: str):
+    """Получает текущее имя бота из Telegram"""
+    try:
+        tokens = load_tokens()
+        bot_token = tokens.get(bot_id, "")
+        
+        if not bot_token:
+            raise HTTPException(status_code=404, detail="Токен бота не найден")
+        
+        # Используем pyTelegramBotAPI для получения имени бота
+        bot = telebot.TeleBot(bot_token)
+        bot_info = bot.get_me()
+        current_name = bot_info.first_name
+        
+        return {
+            "status": "success",
+            "name": current_name
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения имени бота '{bot_id}': {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка получения имени бота: {str(e)}")
 
 
 @app.delete("/delete_token/{bot_id}/")
@@ -1181,7 +1264,7 @@ def restart_bot(bot_id: str):
             if bot_instance_key in running_bots:
                 try:
                     old_bot_instance = running_bots[bot_instance_key]
-                    logger.info(f"📴 Принудительно останавливаем polling для бота {bot_id}")
+                    logger.info(f".MouseEvent Принудительно останавливаем polling для бота {bot_id}")
                     old_bot_instance.stop_polling()
                     del running_bots[bot_instance_key]
                     logger.info("✅ Polling остановлен принудительно")
@@ -1264,7 +1347,7 @@ def stop_bot(bot_id: str):
         if bot_instance_key in running_bots:
             try:
                 bot_instance = running_bots[bot_instance_key]
-                logger.info(f"📴 Принудительно останавливаем polling для бота {bot_id}")
+                logger.info(f".MouseEvent Принудительно останавливаем polling для бота {bot_id}")
                 bot_instance.stop_polling()
                 del running_bots[bot_instance_key]
                 logger.info("✅ Polling остановлен принудительно")

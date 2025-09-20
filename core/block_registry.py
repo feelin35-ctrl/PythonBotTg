@@ -25,6 +25,8 @@ class BlockRegistry:
             from blocks.menu_block import MenuBlock
             from blocks.file_block import FileBlock
             from blocks.auto_update_block import AutoUpdateBlock
+            from blocks.nlp_response_block import NLPResponseBlock
+            from blocks.delay_block import DelayBlock
 
             core_blocks = [
                 MessageBlock,
@@ -36,7 +38,9 @@ class BlockRegistry:
                 ConditionBlock,
                 MenuBlock,
                 FileBlock,
-                AutoUpdateBlock
+                AutoUpdateBlock,
+                NLPResponseBlock,
+                DelayBlock
             ]
 
             for block_class in core_blocks:
@@ -69,7 +73,9 @@ class BlockRegistry:
 
     def get_available_blocks(self) -> list:
         """Возвращает список доступных типов блоков"""
-        return list(self._blocks.keys())
+        blocks_list = list(self._blocks.keys())
+        logger.info(f"Доступные блоки: {blocks_list}")
+        return blocks_list
 
 
 # Глобальный экземпляр реестра

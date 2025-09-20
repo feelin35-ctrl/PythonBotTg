@@ -17,7 +17,9 @@ function BotList() {
 
   const fetchBots = async () => {
     try {
+      console.log("Запрашиваем список ботов...");
       const response = await axios.get(`${API_URL}/get_bots/`);
+      console.log("Получен список ботов:", response.data);
       setBots(response.data.bots);
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
@@ -94,7 +96,8 @@ function BotList() {
     setShowTokenInput(false);
 
     // Обновляем список
-    fetchBots();
+    console.log("Обновляем список ботов...");
+    await fetchBots();
 
     alert(`Бот "${newBotName}" успешно создан с токеном!`);
 
@@ -109,7 +112,8 @@ function BotList() {
       try {
         await axios.delete(`${API_URL}/delete_bot/${botId}/`);
         await axios.delete(`${API_URL}/delete_token/${botId}/`);
-        fetchBots();
+        console.log("Обновляем список ботов после удаления...");
+        await fetchBots();
       } catch (error) {
         alert("Ошибка при удалении: " + (error.response?.data?.message || error.message));
       }
@@ -154,10 +158,11 @@ function BotList() {
         setImportProgress("");
         setShowImportForm(false);
         setImportFile(null);
-        
+      
         // Обновляем список ботов
+        console.log("Обновляем список ботов после импорта...");
         await fetchBots();
-        
+      
         alert(`✅ ${response.data.message}\n🔖 Бот: @${response.data.bot_info?.username || 'неизвестно'}`);
       } else {
         throw new Error(response.data.message || "Неизвестная ошибка");
@@ -255,7 +260,8 @@ function BotList() {
       if (response.data.status === "success") {
         setRenamingBotId(null);
         setRenameValue("");
-        fetchBots();
+        console.log("Обновляем список ботов после переименования...");
+        await fetchBots();
         alert(response.data.message);
       }
     } catch (error) {

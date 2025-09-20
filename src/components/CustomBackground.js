@@ -28,6 +28,31 @@ export const CustomBackground = () => {
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+      
+      {/* Адаптивные стили для мобильных устройств */}
+      <style>
+        {`
+          @media (max-width: 768px) {
+            pattern {
+              width: 15;
+              height: 15;
+            }
+            path {
+              strokeWidth: 0.3;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            pattern {
+              width: 10;
+              height: 10;
+            }
+            path {
+              strokeWidth: 0.2;
+            }
+          }
+        `}
+      </style>
     </svg>
   );
 };

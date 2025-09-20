@@ -13,11 +13,13 @@ function BotList() {
   const [renamingBotId, setRenamingBotId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const navigate = useNavigate();
-  const API_URL = "http://127.0.0.1:8002";
+  const API_URL = "http://127.0.0.1:8001";
 
   const fetchBots = async () => {
     try {
+      console.log("Запрашиваем список ботов...");
       const response = await axios.get(`${API_URL}/get_bots/`);
+      console.log("Получен список ботов:", response.data);
       setBots(response.data.bots);
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
@@ -94,7 +96,8 @@ function BotList() {
     setShowTokenInput(false);
 
     // Обновляем список
-    fetchBots();
+    console.log("Обновляем список ботов...");
+    await fetchBots();
 
     alert(`Бот "${newBotName}" успешно создан с токеном!`);
 
@@ -109,7 +112,8 @@ function BotList() {
       try {
         await axios.delete(`${API_URL}/delete_bot/${botId}/`);
         await axios.delete(`${API_URL}/delete_token/${botId}/`);
-        fetchBots();
+        console.log("Обновляем список ботов после удаления...");
+        await fetchBots();
       } catch (error) {
         alert("Ошибка при удалении: " + (error.response?.data?.message || error.message));
       }
@@ -154,10 +158,11 @@ function BotList() {
         setImportProgress("");
         setShowImportForm(false);
         setImportFile(null);
-        
+      
         // Обновляем список ботов
+        console.log("Обновляем список ботов после импорта...");
         await fetchBots();
-        
+      
         alert(`✅ ${response.data.message}\n🔖 Бот: @${response.data.bot_info?.username || 'неизвестно'}`);
       } else {
         throw new Error(response.data.message || "Неизвестная ошибка");
@@ -255,7 +260,8 @@ function BotList() {
       if (response.data.status === "success") {
         setRenamingBotId(null);
         setRenameValue("");
-        fetchBots();
+        console.log("Обновляем список ботов после переименования...");
+        await fetchBots();
         alert(response.data.message);
       }
     } catch (error) {
@@ -264,157 +270,179 @@ function BotList() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
-      <h1>Конструктор Telegram ботов</h1>
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <h1 style={{ textAlign: "center" }}>Конструктор Telegram ботов</h1>
 
-      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f9f9f9" }}>
-        <h3>Создать нового бота</h3>
+      {/* Адаптивная сетка для форм */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+        gap: "20px", 
+        marginBottom: "30px" 
+      }}>
+        {/* Создание бота */}
+        <div style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f9f9f9" }}>
+          <h3>Создать нового бота</h3>
 
-        <div style={{ marginBottom: "15px" }}>
-          <input
-            type="text"
-            value={newBotName}
-            onChange={(e) => setNewBotName(e.target.value)}
-            placeholder="Имя бота"
-            style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-            disabled={showTokenInput}
-          />
-        </div>
-
-        {showTokenInput && (
           <div style={{ marginBottom: "15px" }}>
             <input
-              type="password"
-              value={botToken}
-              onChange={(e) => setBotToken(e.target.value)}
-              placeholder="Токен бота от @BotFather"
-              style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontFamily: "monospace" }}
+              type="text"
+              value={newBotName}
+              onChange={(e) => setNewBotName(e.target.value)}
+              placeholder="Имя бота"
+              style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              disabled={showTokenInput}
             />
           </div>
-        )}
 
-        <div style={{ display: "flex", gap: "10px" }}>
-          {!showTokenInput ? (
-            <button onClick={handleStartCreate} style={{ padding: "10px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-              Создать бота
-            </button>
+          {showTokenInput && (
+            <div style={{ marginBottom: "15px" }}>
+              <input
+                type="password"
+                value={botToken}
+                onChange={(e) => setBotToken(e.target.value)}
+                placeholder="Токен бота от @BotFather"
+                style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontFamily: "monospace" }}
+              />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            {!showTokenInput ? (
+              <button onClick={handleStartCreate} style={{ padding: "10px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                Создать бота
+              </button>
+            ) : (
+              <>
+                <button onClick={handleCreateBot} style={{ padding: "10px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                  Создать
+                </button>
+                <button onClick={handleCancelCreate} style={{ padding: "10px 15px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+                  Отмена
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Импорт бота */}
+        <div style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f0f8ff" }}>
+          <h3>📂 Импорт бота</h3>
+          
+          {!showImportForm ? (
+            <div>
+              <p style={{ color: "#666", marginBottom: "15px" }}>
+                Импортируйте ранее экспортированного бота с полной конфигурацией
+              </p>
+              <button 
+                onClick={() => setShowImportForm(true)} 
+                style={{ 
+                  padding: "10px 15px", 
+                  backgroundColor: "#17a2b8", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: "4px", 
+                  cursor: "pointer" 
+                }}
+              >
+                📂 Импортировать бота
+              </button>
+            </div>
           ) : (
-            <>
-              <button onClick={handleCreateBot} style={{ padding: "10px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                Создать
-              </button>
-              <button onClick={handleCancelCreate} style={{ padding: "10px 15px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                Отмена
-              </button>
-            </>
+            <div>
+              <div style={{ marginBottom: "15px" }}>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  Выберите файл экспорта (.json):
+                </label>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => setImportFile(e.target.files[0])}
+                  style={{ 
+                    width: "100%", 
+                    padding: "8px", 
+                    border: "1px solid #ccc", 
+                    borderRadius: "4px" 
+                  }}
+                />
+              </div>
+              
+              {importProgress && (
+                <div style={{ 
+                  marginBottom: "15px", 
+                  padding: "10px", 
+                  backgroundColor: "#e7f3ff", 
+                  border: "1px solid #bee5eb", 
+                  borderRadius: "4px", 
+                  color: "#0c5460" 
+                }}>
+                  {importProgress}
+                </div>
+              )}
+              
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button 
+                  onClick={handleImportBot} 
+                  disabled={!importFile || importProgress}
+                  style={{ 
+                    padding: "10px 15px", 
+                    backgroundColor: importFile && !importProgress ? "#28a745" : "#6c757d", 
+                    color: "white", 
+                    border: "none", 
+                    borderRadius: "44px", 
+                    cursor: importFile && !importProgress ? "pointer" : "not-allowed" 
+                  }}
+                >
+                  🚀 Импортировать
+                </button>
+                <button 
+                  onClick={handleCancelImport}
+                  disabled={importProgress}
+                  style={{ 
+                    padding: "10px 15px", 
+                    backgroundColor: "#6c757d", 
+                    color: "white", 
+                    border: "none", 
+                    borderRadius: "4px", 
+                    cursor: importProgress ? "not-allowed" : "pointer" 
+                  }}
+                >
+                  ❌ Отмена
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #ddd", borderRadius: "8px", backgroundColor: "#f0f8ff" }}>
-        <h3>📂 Импорт бота</h3>
-        
-        {!showImportForm ? (
-          <div>
-            <p style={{ color: "#666", marginBottom: "15px" }}>
-              Импортируйте ранее экспортированного бота с полной конфигурацией
-            </p>
-            <button 
-              onClick={() => setShowImportForm(true)} 
-              style={{ 
-                padding: "10px 15px", 
-                backgroundColor: "#17a2b8", 
-                color: "white", 
-                border: "none", 
-                borderRadius: "4px", 
-                cursor: "pointer" 
-              }}
-            >
-              📂 Импортировать бота
-            </button>
-          </div>
-        ) : (
-          <div>
-            <div style={{ marginBottom: "15px" }}>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                Выберите файл экспорта (.json):
-              </label>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => setImportFile(e.target.files[0])}
-                style={{ 
-                  width: "100%", 
-                  padding: "8px", 
-                  border: "1px solid #ccc", 
-                  borderRadius: "4px" 
-                }}
-              />
-            </div>
-            
-            {importProgress && (
-              <div style={{ 
-                marginBottom: "15px", 
-                padding: "10px", 
-                backgroundColor: "#e7f3ff", 
-                border: "1px solid #bee5eb", 
-                borderRadius: "4px", 
-                color: "#0c5460" 
-              }}>
-                {importProgress}
-              </div>
-            )}
-            
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button 
-                onClick={handleImportBot} 
-                disabled={!importFile || importProgress}
-                style={{ 
-                  padding: "10px 15px", 
-                  backgroundColor: importFile && !importProgress ? "#28a745" : "#6c757d", 
-                  color: "white", 
-                  border: "none", 
-                  borderRadius: "4px", 
-                  cursor: importFile && !importProgress ? "pointer" : "not-allowed" 
-                }}
-              >
-                🚀 Импортировать
-              </button>
-              <button 
-                onClick={handleCancelImport}
-                disabled={importProgress}
-                style={{ 
-                  padding: "10px 15px", 
-                  backgroundColor: "#6c757d", 
-                  color: "white", 
-                  border: "none", 
-                  borderRadius: "4px", 
-                  cursor: importProgress ? "not-allowed" : "pointer" 
-                }}
-              >
-                ❌ Отмена
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
+      {/* Список ботов */}
       <div>
         <h3>Мои боты ({bots.length})</h3>
         {bots.length === 0 ? (
           <p>Нет созданных ботов</p>
         ) : (
-          <div style={{ border: "1px solid #ddd", borderRadius: "8px" }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", 
+            gap: "15px" 
+          }}>
             {bots.map((bot) => (
-              <div key={bot} style={{ padding: "15px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={bot} style={{ 
+                padding: "15px", 
+                border: "1px solid #ddd", 
+                borderRadius: "8px",
+                display: "flex", 
+                flexDirection: "column",
+                gap: "10px"
+              }}>
                 {renamingBotId === bot ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
                     <input
                       type="text"
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       placeholder="Новое имя бота"
-                      style={{ flex: 1, padding: "5px", border: "1px solid #ccc", borderRadius: "4px" }}
+                      style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           confirmRename();
@@ -424,23 +452,25 @@ function BotList() {
                       }}
                       autoFocus
                     />
-                    <button 
-                      onClick={confirmRename}
-                      style={{ padding: "5px 10px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                    >
-                      ✓
-                    </button>
-                    <button 
-                      onClick={cancelRename}
-                      style={{ padding: "5px 10px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                    >
-                      ✕
-                    </button>
+                    <div style={{ display: "flex", gap: "5px" }}>
+                      <button 
+                        onClick={confirmRename}
+                        style={{ padding: "5px 10px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", flex: 1 }}
+                      >
+                        ✓
+                      </button>
+                      <button 
+                        onClick={cancelRename}
+                        style={{ padding: "5px 10px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", flex: 1 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
-                    <span style={{ fontWeight: "bold", fontSize: "16px" }}>{bot}</span>
-                    <div style={{ display: "flex", gap: "5px" }}>
+                    <div style={{ fontWeight: "bold", fontSize: "16px", textAlign: "center" }}>{bot}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", justifyContent: "center" }}>
                       <button 
                         onClick={() => startRename(bot)}
                         style={{ 
@@ -452,7 +482,10 @@ function BotList() {
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          gap: "5px"
+                          gap: "5px",
+                          flex: "1 1 auto",
+                          minWidth: "120px",
+                          justifyContent: "center"
                         }}
                       >
                         ✏️ Переименовать
@@ -468,7 +501,10 @@ function BotList() {
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          gap: "5px"
+                          gap: "5px",
+                          flex: "1 1 auto",
+                          minWidth: "120px",
+                          justifyContent: "center"
                         }}
                       >
                         ✏️ Редактировать
@@ -484,7 +520,10 @@ function BotList() {
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          gap: "5px"
+                          gap: "5px",
+                          flex: "1 1 auto",
+                          minWidth: "120px",
+                          justifyContent: "center"
                         }}
                       >
                         📤 Экспорт
@@ -500,7 +539,10 @@ function BotList() {
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          gap: "5px"
+                          gap: "5px",
+                          flex: "1 1 auto",
+                          minWidth: "120px",
+                          justifyContent: "center"
                         }}
                       >
                         🗑️ Удалить

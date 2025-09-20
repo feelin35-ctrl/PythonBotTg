@@ -100,7 +100,8 @@ const InputWithEmoji = ({
           justifyContent: 'center',
           borderRadius: '4px',
           transition: 'background 0.2s ease',
-          zIndex: 1
+          zIndex: 1,
+          padding: 0
         }}
         onMouseEnter={(e) => {
           e.target.style.background = '#f0f0f0';

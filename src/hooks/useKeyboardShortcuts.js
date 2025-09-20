@@ -7,6 +7,11 @@ export const useKeyboardShortcuts = ({
   onRedo
 }) => {
   const handleKeyPress = useCallback((event) => {
+    // Проверяем, не находится ли фокус ввода в поле ввода
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+      return;
+    }
+
     // Delete - удалить выбранные элементы (блоки и связи)
     if (event.key === 'Delete') {
       event.preventDefault();
