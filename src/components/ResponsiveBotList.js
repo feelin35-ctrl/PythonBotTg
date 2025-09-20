@@ -184,9 +184,15 @@ const ResponsiveBotList = () => {
       console.log("Запрашиваем список ботов...");
       const response = await axios.get(`${API_URL}/get_bots/`);
       console.log("Получен список ботов:", response.data);
-      setBots(response.data.bots);
+      // Добавляем проверку, что response.data.bots является массивом
+      if (response.data && Array.isArray(response.data.bots)) {
+        setBots(response.data.bots);
+      } else {
+        setBots([]); // Устанавливаем пустой массив, если данные некорректны
+      }
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
+      setBots([]); // Устанавливаем пустой массив в случае ошибки
     }
   };
 
@@ -549,12 +555,12 @@ const ResponsiveBotList = () => {
 
       {/* Список ботов */}
       <div>
-        <h3>Мои боты ({bots.length})</h3>
-        {bots.length === 0 ? (
+        <h3>Мои боты ({Array.isArray(bots) ? bots.length : 0})</h3>
+        {!Array.isArray(bots) || bots.length === 0 ? (
           <p>Нет созданных ботов</p>
         ) : (
           <BotGrid>
-            {bots.map((bot) => (
+            {Array.isArray(bots) && bots.map((bot) => (
               <BotCard key={bot}>
                 {renamingBotId === bot ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

@@ -18,11 +18,18 @@ function BotList() {
   const fetchBots = async () => {
     try {
       console.log("Запрашиваем список ботов...");
-      const response = await axios.get(`/API/get_bots/`);
+      // Используем тот же URL, что и в других местах
+      const response = await axios.get(`${API_URL}/get_bots/`);
       console.log("Получен список ботов:", response.data);
-      setBots(response.data.bots);
+      // Добавляем проверку, что response.data.bots является массивом
+      if (response.data && Array.isArray(response.data.bots)) {
+        setBots(response.data.bots);
+      } else {
+        setBots([]); // Устанавливаем пустой массив, если данные некорректны
+      }
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
+      setBots([]); // Устанавливаем пустой массив в случае ошибки
     }
   };
 
@@ -417,8 +424,8 @@ function BotList() {
 
       {/* Список ботов */}
       <div>
-        <h3>Мои боты ({bots.length})</h3>
-        {bots.length === 0 ? (
+        <h3>Мои боты ({Array.isArray(bots) ? bots.length : 0})</h3>
+        {!Array.isArray(bots) || bots.length === 0 ? (
           <p>Нет созданных ботов</p>
         ) : (
           <div style={{ 
@@ -426,7 +433,7 @@ function BotList() {
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", 
             gap: "15px" 
           }}>
-            {bots.map((bot) => (
+            {Array.isArray(bots) && bots.map((bot) => (
               <div key={bot} style={{ 
                 padding: "15px", 
                 border: "1px solid #ddd", 
