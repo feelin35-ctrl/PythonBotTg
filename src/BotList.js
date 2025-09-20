@@ -18,7 +18,7 @@ function BotList() {
   const fetchBots = async () => {
     try {
       console.log("Запрашиваем список ботов...");
-      const response = await axios.get(`${API_URL}/get_bots/`);
+      const response = await axios.get(`/API/get_bots/`);
       console.log("Получен список ботов:", response.data);
       setBots(response.data.bots);
     } catch (error) {
