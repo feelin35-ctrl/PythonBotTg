@@ -140,7 +140,27 @@ const BotEditor = ({ botId }) => {
           <MiniMap />
           <Background variant="dots" gap={12} size={1} />
           <Panel position="top-right">
-            <ControlPanel onSave={onSave} onLoad={onLoad} onDeleteNode={onDeleteNode} />
+            <ControlPanel 
+              botToken={botToken}
+              setBotToken={setBotToken}
+              botName={botName}
+              setBotName={setBotName}
+              onSaveToken={saveToken}
+              onSaveBotName={saveBotName}
+              onSaveScenario={saveScenario}
+              onDeleteSelected={deleteSelectedNodes}
+              onDeleteAll={deleteAllNodes}
+              onRunBot={() => runBot(botToken)}
+              onRestartBot={restartBot}
+              onStopBot={stopBot}
+              onNavigateBack={() => navigate('/')}
+              nodesCount={initialNodes.length}
+              edgesCount={edges.length}
+              selectedCount={initialNodes.filter(n => n.selected).length}
+              botId={botId}
+              isBotRunning={isBotRunning}
+              loadingStatus={loadingStatus}
+            />
           </Panel>
         </ReactFlow>
       </FlowContainer>

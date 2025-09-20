@@ -11,10 +11,14 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from dotenv import load_dotenv
 
 # Импорты архитектуры блоков
 from core.block_registry import block_registry
 from core.scenario_runner import ScenarioRunner
+
+# Загрузка переменных окружения из файла .env
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
@@ -98,6 +102,13 @@ chat_history = {}  # Храним историю переходов для ка�
 
 
 def load_tokens():
+    # Проверяем, есть ли переменная окружения BOT_TOKEN
+    env_token = os.getenv("BOT_TOKEN")
+    if env_token:
+        # Если есть переменная окружения, используем её
+        return {"env_bot": env_token}
+    
+    # Если нет переменной окружения, используем файл как раньше
     if os.path.exists(TOKENS_FILE):
         try:
             with open(TOKENS_FILE, 'r', encoding='utf-8') as f:
@@ -108,6 +119,10 @@ def load_tokens():
 
 
 def save_tokens(tokens):
+    # Если используется переменная окружения, не сохраняем в файл
+    if os.getenv("BOT_TOKEN"):
+        return
+    
     with open(TOKENS_FILE, 'w', encoding='utf-8') as f:
         json.dump(tokens, f, ensure_ascii=False, indent=2)
 
@@ -673,9 +688,16 @@ def create_bot_config(bot_dir: str, bot_id: str, scenario: Scenario, token: str)
     with open(scenario_path, "w", encoding="utf-8") as f:
         json.dump(scenario.dict(), f, ensure_ascii=False, indent=2)
     
-    # Создаем файл токенов
+    # Создаем файл токенов или .env файл
     tokens_path = os.path.join(bot_dir, "bot_tokens.json")
-    tokens_data = {bot_id: token}
+    env_path = os.path.join(bot_dir, ".env")
+    
+    # Создаем .env файл с токеном
+    with open(env_path, "w", encoding="utf-8") as f:
+        f.write(f"BOT_TOKEN={token}\n")
+    
+    # Создаем пустой файл токенов для совместимости
+    tokens_data = {bot_id: ""}  # Пустой токен, так как теперь используется .env
     with open(tokens_path, "w", encoding="utf-8") as f:
         json.dump(tokens_data, f, ensure_ascii=False, indent=2)
 
@@ -787,18 +809,25 @@ def run_bot():
                 continue
             
             # Загружаем конфигурацию
-            tokens_path = "bot_tokens.json"
-            if not os.path.exists(tokens_path):
-                logger.error("Файл токенов не найден")
-                return
+            # Сначала пробуем загрузить из .env файла
+            from dotenv import load_dotenv
+            load_dotenv()
+            bot_token = os.getenv("BOT_TOKEN")
             
-            with open(tokens_path, "r", encoding="utf-8") as f:
-                tokens = json.load(f)
-            
-            bot_token = tokens.get("{bot_id}")
+            # Если нет в .env, пробуем загрузить из файла токенов
             if not bot_token:
-                logger.error("Токен бота не найден")
-                return
+                tokens_path = "bot_tokens.json"
+                if not os.path.exists(tokens_path):
+                    logger.error("Файл токенов не найден")
+                    return
+                
+                with open(tokens_path, "r", encoding="utf-8") as f:
+                    tokens = json.load(f)
+                
+                bot_token = tokens.get("{bot_id}")
+                if not bot_token:
+                    logger.error("Токен бота не найден")
+                    return
             
             # Загружаем сценарий
             scenario_path = f"bots/bot_{bot_id}.json"
@@ -911,7 +940,8 @@ def create_readme(bot_dir: str, bot_id: str):
 
 ## Структура проекта
 - `main.py` - точка входа для запуска бота
-- `bot_tokens.json` - файл с токеном бота
+- `.env` - файл с токеном бота (рекомендуется)
+- `bot_tokens.json` - файл с токеном бота (альтернативный способ)
 - `bots/bot_{bot_id}.json` - файл сценария бота
 - `blocks/` - папка с блоками бота
 - `core/` - папка с ядром системы
@@ -924,7 +954,10 @@ def create_readme(bot_dir: str, bot_id: str):
    ```bash
    pip install -r requirements.txt
    ```
-3. Убедитесь, что файл `bot_tokens.json` содержит правильный токен
+3. Создайте файл `.env` и добавьте в него токен бота:
+   ```
+   BOT_TOKEN=ваш_токен_здесь
+   ```
 4. Запустите бота:
    ```bash
    python main.py

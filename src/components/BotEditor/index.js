@@ -40,10 +40,6 @@ const BotEditor = () => {
     onDrop,
     onDragOver,
     onInit,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
     navigateBack,
     nodesCount,
     edgesCount,
@@ -89,8 +85,6 @@ const BotEditor = () => {
           onSaveScenario={saveScenario}
           onDeleteSelected={deleteSelectedNodes}
           onDeleteAll={deleteAllNodes}
-          onUndo={undo}
-          onRedo={redo}
           onRunBot={runBot}
           onRestartBot={restartBot}
           onStopBot={stopBot} // ← Передаем функцию остановки
@@ -98,8 +92,6 @@ const BotEditor = () => {
           nodesCount={nodesCount}
           edgesCount={edgesCount}
           selectedCount={selectedCount}
-          canUndo={canUndo}
-          canRedo={canRedo}
           botId={botId}
           isBotRunning={isBotRunning} // ← Передаем статус
           loadingStatus={loadingStatus} // ← Передаем состояние загрузки

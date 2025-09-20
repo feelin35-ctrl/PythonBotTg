@@ -11,8 +11,6 @@ const ControlPanel = ({
   onSaveScenario,
   onDeleteSelected,
   onDeleteAll,
-  onUndo,
-  onRedo,
   onRunBot,
   onRestartBot,
   onStopBot, // ← Новая функция остановки
@@ -20,8 +18,6 @@ const ControlPanel = ({
   nodesCount,
   edgesCount,
   selectedCount,
-  canUndo,
-  canRedo,
   botId,
   isBotRunning, // ← Статус бота
   loadingStatus // ← Состояние загрузки
@@ -109,23 +105,6 @@ const ControlPanel = ({
         ...styles.secondaryButton
       }} title="Назад к списку">
         ⬅
-      </button>
-
-      {/* Управление историей */}
-      <button onClick={onUndo} disabled={!canUndo} style={{
-        ...styles.button,
-        ...styles.secondaryButton,
-        opacity: canUndo ? 1 : 0.5
-      }} title="Отменить (Ctrl+Z)">
-        ↩️
-      </button>
-
-      <button onClick={onRedo} disabled={!canRedo} style={{
-        ...styles.button,
-        ...styles.secondaryButton,
-        opacity: canRedo ? 1 : 0.5
-      }} title="Повторить (Ctrl+Y)">
-        ↪️
       </button>
 
       {/* Удаление */}

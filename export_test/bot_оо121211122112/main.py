@@ -17,6 +17,7 @@ from core.block_registry import block_registry
 import telebot
 import time
 import threading
+from dotenv import load_dotenv
 
 # Настройка логирования
 logging.basicConfig(
@@ -33,18 +34,24 @@ def run_bot():
     """Запускает бота"""
     try:
         # Загружаем конфигурацию
-        tokens_path = "bot_tokens.json"
-        if not os.path.exists(tokens_path):
-            logger.error("Файл токенов не найден")
-            return
+        # Сначала пробуем загрузить из .env файла
+        load_dotenv()
+        bot_token = os.getenv("BOT_TOKEN")
         
-        with open(tokens_path, "r", encoding="utf-8") as f:
-            tokens = json.load(f)
-        
-        bot_token = tokens.get("оо121211122112")
+        # Если нет в .env, пробуем загрузить из файла токенов
         if not bot_token:
-            logger.error("Токен бота не найден")
-            return
+            tokens_path = "bot_tokens.json"
+            if not os.path.exists(tokens_path):
+                logger.error("Файл токенов не найден")
+                return
+            
+            with open(tokens_path, "r", encoding="utf-8") as f:
+                tokens = json.load(f)
+            
+            bot_token = tokens.get("оо121211122112")
+            if not bot_token:
+                logger.error("Токен бота не найден")
+                return
         
         # Загружаем сценарий
         scenario_path = f"bots/bot_оо121211122112.json"

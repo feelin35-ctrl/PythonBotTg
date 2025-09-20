@@ -2,9 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 export const useKeyboardShortcuts = ({
   onDeleteSelected,
-  onDeleteAll,
-  onUndo,
-  onRedo
+  onDeleteAll
 }) => {
   const handleKeyPress = useCallback((event) => {
     // Проверяем, не находится ли фокус ввода в поле ввода
@@ -29,19 +27,7 @@ export const useKeyboardShortcuts = ({
       event.preventDefault();
       onDeleteAll?.();
     }
-
-    // Ctrl+Z - отмена
-    if (event.ctrlKey && event.key === 'z') {
-      event.preventDefault();
-      onUndo?.();
-    }
-
-    // Ctrl+Y - повтор
-    if (event.ctrlKey && event.key === 'y') {
-      event.preventDefault();
-      onRedo?.();
-    }
-  }, [onDeleteSelected, onDeleteAll, onUndo, onRedo]);
+  }, [onDeleteSelected, onDeleteAll]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);

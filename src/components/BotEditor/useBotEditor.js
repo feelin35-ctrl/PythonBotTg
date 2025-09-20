@@ -17,7 +17,7 @@ export const useBotEditor = () => {
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
-  const { saveToHistory, undo, redo, canUndo, canRedo } = useUndoRedo({
+  const { saveToHistory, undo, redo } = useUndoRedo({
     nodes: initialNodes,
     edges: edges
   });
@@ -163,9 +163,7 @@ export const useBotEditor = () => {
 
   useKeyboardShortcuts({
     onDeleteSelected: deleteSelectedNodes,
-    onDeleteAll: deleteAllNodes,
-    onUndo: undo,
-    onRedo: redo
+    onDeleteAll: deleteAllNodes
   });
 
   useEffect(() => {
@@ -471,10 +469,6 @@ export const useBotEditor = () => {
     onDrop,
     onDragOver,
     onInit,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
     navigateBack: () => navigate('/'),
     nodesCount: initialNodes.length,
     edgesCount: edges.length,
