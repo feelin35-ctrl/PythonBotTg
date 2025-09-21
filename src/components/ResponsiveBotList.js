@@ -192,6 +192,21 @@ const ResponsiveBotList = () => {
       }
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
+      
+      // Проверяем таймаут
+      if (error.code === 'ECONNABORTED') {
+        console.error('Connection timeout - please check if the backend server is running');
+        // Можно показать пользователю уведомление
+        if (window.innerWidth <= 768) {
+          alert(`Ошибка подключения к серверу. Пожалуйста, проверьте интернет-соединение.`);
+        }
+      } else if (!error.response) {
+        console.error('Network error - please check your connection');
+        if (window.innerWidth <= 768) {
+          alert(`Ошибка сети. Пожалуйста, проверьте интернет-соединение.`);
+        }
+      }
+      
       setBots([]); // Устанавливаем пустой массив в случае ошибки
     }
   };

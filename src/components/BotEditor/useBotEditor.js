@@ -168,6 +168,25 @@ export const useBotEditor = () => {
   });
 
   useEffect(() => {
+    // Функция для обработки ошибок API
+    const handleApiError = (error, operation) => {
+      console.error(`Error ${operation}:`, error);
+      
+      // Проверяем таймаут
+      if (error.code === 'ECONNABORTED') {
+        console.error('Connection timeout - please check if the backend server is running');
+        // Можно показать пользователю уведомление
+        if (window.innerWidth <= 768) {
+          alert(`Ошибка подключения к серверу. Пожалуйста, проверьте интернет-соединение.`);
+        }
+      } else if (!error.response) {
+        console.error('Network error - please check your connection');
+        if (window.innerWidth <= 768) {
+          alert(`Ошибка сети. Пожалуйста, проверьте интернет-соединение.`);
+        }
+      }
+    };
+
     api.get(`/api/get_scenario/${botId}/`)
       .then((res) => {
         console.log('Loaded scenario data:', res.data);
@@ -201,7 +220,7 @@ export const useBotEditor = () => {
         setEdges(loadedEdges);
       })
       .catch(error => {
-        console.error('Error loading scenario:', error);
+        handleApiError(error, 'loading scenario');
       });
 
     api.get(`/api/get_token/${botId}/`)
@@ -209,7 +228,9 @@ export const useBotEditor = () => {
         console.log('Loaded bot token:', res.data.token);
         setBotToken(res.data.token || '');
       })
-      .catch(console.error);
+      .catch(error => {
+        handleApiError(error, 'loading token');
+      });
       
     // Загружаем имя бота
     api.get(`/api/get_bot_name/${botId}/`)
@@ -220,7 +241,7 @@ export const useBotEditor = () => {
         }
       })
       .catch(error => {
-        console.error('Error loading bot name:', error);
+        handleApiError(error, 'loading bot name');
         // Если не удалось получить имя, оставляем пустым
         setBotName('');
       });
