@@ -1,10 +1,15 @@
 node_modules
 .env
-__pycache__
-*.pyc
-.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+__pycache__
+*.pyc
 build
+
+# Файлы с токенами (не должны попадать в репозиторий)
+bot_tokens.json
+*.env
+.env*
+!*.env.example

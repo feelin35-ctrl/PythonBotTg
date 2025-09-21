@@ -155,18 +155,10 @@ def load_tokens():
     if os.path.exists(TOKENS_FILE):
         try:
             logger.info(f"Читаем токены из файла {TOKENS_FILE}")
-            # Попробуем загрузить зашифрованные токены
-            try:
-                from core.security import decrypt_tokens_file
-                tokens = decrypt_tokens_file(TOKENS_FILE)
-                logger.info(f"Загружены зашифрованные токены: {list(tokens.keys())}")
+            with open(TOKENS_FILE, 'r', encoding='utf-8') as f:
+                tokens = json.load(f)
+                logger.info(f"Загружены токены: {list(tokens.keys())}")
                 return tokens
-            except ImportError:
-                # Если модуль безопасности недоступен, загружаем как обычно
-                with open(TOKENS_FILE, 'r', encoding='utf-8') as f:
-                    tokens = json.load(f)
-                    logger.info(f"Загружены токены: {list(tokens.keys())}")
-                    return tokens
         except Exception as e:
             logger.error(f"Ошибка загрузки токенов из файла: {e}")
             return {}
@@ -180,14 +172,8 @@ def save_tokens(tokens):
     if os.getenv("BOT_TOKEN"):
         return
     
-    # Сохраняем токены с шифрованием
-    try:
-        from core.security import encrypt_tokens_file
-        encrypt_tokens_file(tokens, TOKENS_FILE)
-    except ImportError:
-        # Если модуль безопасности недоступен, сохраняем как обычно
-        with open(TOKENS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(tokens, f, ensure_ascii=False, indent=2)
+    with open(TOKENS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(tokens, f, ensure_ascii=False, indent=2)
 
 
 def bot_file(bot_id: str) -> str:
