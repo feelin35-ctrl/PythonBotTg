@@ -44,7 +44,8 @@ allowed_origins = [
     "http://127.0.0.1:3002", 
     "http://localhost:3003", 
     "http://127.0.0.1:3003", 
-    "http://45.150.9.70:8001"
+    "http://45.150.9.70:8001",
+    "http://45.150.9.70"  # Добавляем адрес без порта для продакшена
 ]
 
 # Добавляем дополнительные origins из переменной окружения
@@ -1129,7 +1130,14 @@ def save_bot_token(bot_id: str, token_data: Dict[str, str]):
 @app.get("/api/get_token/{bot_id}/")
 def get_bot_token(bot_id: str):
     tokens = load_tokens()
-    token = tokens.get(bot_id, "")
+    # Проверяем, используется ли переменная окружения BOT_TOKEN
+    env_token = os.getenv("BOT_TOKEN")
+    if env_token:
+        # Если используется переменная окружения, возвращаем её для всех ботов
+        token = env_token
+    else:
+        # Если нет переменной окружения, ищем токен по bot_id
+        token = tokens.get(bot_id, "")
     return {"token": token}
 
 
@@ -1139,7 +1147,14 @@ def set_bot_name(bot_id: str, name_data: Dict[str, str]):
     """Устанавливает имя бота в Telegram"""
     try:
         tokens = load_tokens()
-        bot_token = tokens.get(bot_id, "")
+        # Проверяем, используется ли переменная окружения BOT_TOKEN
+        env_token = os.getenv("BOT_TOKEN")
+        if env_token:
+            # Если используется переменная окружения, используем её для всех ботов
+            bot_token = env_token
+        else:
+            # Если нет переменной окружения, ищем токен по bot_id
+            bot_token = tokens.get(bot_id, "")
         
         if not bot_token:
             raise HTTPException(status_code=404, detail="Токен бота не найден")
@@ -1176,7 +1191,17 @@ def get_bot_name(bot_id: str):
         tokens = load_tokens()
         logger.info(f"Все доступные токены: {list(tokens.keys())}")
         logger.info(f"Запрошенный bot_id: {bot_id}")
-        bot_token = tokens.get(bot_id, "")
+        
+        # Проверяем, используется ли переменная окружения BOT_TOKEN
+        env_token = os.getenv("BOT_TOKEN")
+        if env_token:
+            # Если используется переменная окружения, используем её для всех ботов
+            bot_token = env_token
+            logger.info("Используется токен из переменной окружения BOT_TOKEN для всех ботов")
+        else:
+            # Если нет переменной окружения, ищем токен по bot_id
+            bot_token = tokens.get(bot_id, "")
+        
         logger.info(f"Найденный токен: {bot_token}")
         
         if not bot_token:
@@ -1274,7 +1299,20 @@ def run_bot(bot_id: str, token: Dict[str, str]):
     if not scenario_data.nodes:
         return {"status": "error", "message": "Сценарий пуст."}
 
-    bot_token = token.get("token", "").strip()
+    # Проверяем, используется ли переменная окружения BOT_TOKEN
+    env_token = os.getenv("BOT_TOKEN")
+    if env_token:
+        # Если используется переменная окружения, используем её для всех ботов
+        bot_token = env_token
+        logger.info("Используется токен из переменной окружения BOT_TOKEN для запуска бота")
+    else:
+        # Если нет переменной окружения, получаем токен из параметров или из файла
+        bot_token = token.get("token", "").strip()
+        if not bot_token:
+            # Если токен не передан в параметрах, пытаемся получить его из файла
+            tokens = load_tokens()
+            bot_token = tokens.get(bot_id, "").strip()
+
     if not bot_token:
         return {"status": "error", "message": "Токен не предоставлен."}
 
