@@ -223,14 +223,10 @@ export const useBotEditor = () => {
         handleApiError(error, 'loading scenario');
       });
 
-    api.get(`/api/get_token/${botId}/`)
-      .then(res => {
-        console.log('Loaded bot token:', res.data.token);
-        setBotToken(res.data.token || '');
-      })
-      .catch(error => {
-        handleApiError(error, 'loading token');
-      });
+    // Для безопасности не загружаем токен напрямую из API
+    // Вместо этого устанавливаем пустое значение или значение из локального хранилища
+    const savedToken = localStorage.getItem(`botToken_${botId}`) || '';
+    setBotToken(savedToken);
       
     // Загружаем имя бота
     api.get(`/api/get_bot_name/${botId}/`)
@@ -278,23 +274,25 @@ export const useBotEditor = () => {
   }, [botId, initialNodes, edges]);
 
   const saveToken = useCallback(() => {
-    api.post(`/api/save_token/${botId}/`, { token: botToken })
-      .then(() => {
-        // На мобильных устройствах показываем уведомление через alert
-        if (window.innerWidth <= 768) {
-          alert("Токен сохранен!");
-        } else {
-          console.log("Токен сохранен");
-        }
-      })
-      .catch(err => {
-        // На мобильных устройствах показываем уведомление через alert
-        if (window.innerWidth <= 768) {
-          alert("Ошибка сохранения токена: " + err.message);
-        } else {
-          console.error("Ошибка сохранения токена:", err);
-        }
-      });
+    // Для безопасности не сохраняем токены через API в продакшене
+    // Вместо этого сохраняем в локальном хранилище браузера (только для разработки)
+    if (process.env.NODE_ENV === 'development') {
+      localStorage.setItem(`botToken_${botId}`, botToken);
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Токен сохранен локально (только для разработки)!");
+      } else {
+        console.log("Токен сохранен локально (только для разработки)");
+      }
+    } else {
+      // В продакшене не сохраняем токены в браузере
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("В продакшене токены должны быть установлены через переменные окружения!");
+      } else {
+        console.log("В продакшене токены должны быть установлены через переменные окружения");
+      }
+    }
   }, [botId, botToken]);
 
   // Функция для сохранения имени бота

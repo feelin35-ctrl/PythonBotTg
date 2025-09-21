@@ -109,6 +109,10 @@ class BotImportData(BaseModel):
     token: str
 
 
+class TokenData(BaseModel):
+    token: str
+
+
 # ========== НАСТРОЙКИ ==========
 BOTS_DIR = "bots"
 os.makedirs(BOTS_DIR, exist_ok=True)
@@ -195,6 +199,19 @@ def validate_telegram_token(token: str) -> bool:
     if len(parts[1]) < 20:
         return False
     return True
+
+
+def check_token_sync(token: str) -> bool:
+    """Синхронная проверка токена Telegram"""
+    try:
+        if not validate_telegram_token(token):
+            return False
+
+        test_bot = telebot.TeleBot(token)
+        test_bot.get_me()
+        return True
+    except Exception:
+        return False
 
 
 def check_telegram_connection():
@@ -1118,6 +1135,68 @@ def delete_bot(bot_id: str):
     raise HTTPException(status_code=404, detail=f"Бот {bot_id} не найден.")
 
 
+@app.get("/api/get_token/{bot_id}/")
+def get_token(bot_id: str):
+    """Получение токена бота (только для администратора или внутреннего использования)"""
+    # В целях безопасности не возвращаем токен напрямую через API
+    # Вместо этого проверяем его наличие
+    token = get_bot_token(bot_id)
+    if token:
+        return {"status": "success", "message": "Token exists"}
+    else:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+
+@app.post("/api/save_token/{bot_id}/")
+def save_token(bot_id: str, token_data: TokenData):
+    """Сохранение токена бота (только для администратора)"""
+    # В целях безопасности не сохраняем токены через API в продакшене
+    # Вместо этого рекомендуем использовать переменные окружения
+    if os.getenv("ENVIRONMENT") == "production":
+        raise HTTPException(status_code=403, detail="Token saving is disabled in production. Use environment variables instead.")
+    
+    try:
+        # Для разработки сохраняем в файл
+        tokens = {}
+        if os.path.exists(TOKENS_FILE):
+            with open(TOKENS_FILE, 'r') as f:
+                tokens = json.load(f)
+        
+        tokens[bot_id] = token_data.token
+        
+        with open(TOKENS_FILE, 'w') as f:
+            json.dump(tokens, f, indent=2)
+        
+        return {"status": "success", "message": "Token saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving token: {str(e)}")
+
+@app.delete("/api/delete_token/{bot_id}/")
+def delete_token(bot_id: str):
+    """Удаление токена бота (только для администратора)"""
+    # В целях безопасности не удаляем токены через API в продакшене
+    if os.getenv("ENVIRONMENT") == "production":
+        raise HTTPException(status_code=403, detail="Token deletion is disabled in production.")
+    
+    try:
+        if os.path.exists(TOKENS_FILE):
+            with open(TOKENS_FILE, 'r') as f:
+                tokens = json.load(f)
+            
+            if bot_id in tokens:
+                del tokens[bot_id]
+                
+                with open(TOKENS_FILE, 'w') as f:
+                    json.dump(tokens, f, indent=2)
+                
+                return {"status": "success", "message": "Token deleted successfully"}
+            else:
+                raise HTTPException(status_code=404, detail="Token not found")
+        else:
+            raise HTTPException(status_code=404, detail="Tokens file not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting token: {str(e)}")
+
 @app.post("/api/save_token/{bot_id}/")
 def save_bot_token(bot_id: str, token_data: Dict[str, str]):
     tokens = load_tokens()
@@ -1269,21 +1348,39 @@ def check_bot(token: str):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+import os
+import logging
+import threading
+import requests
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-
-@app.get("/api/available_blocks/")
-def get_available_blocks():
-    """Возвращает список доступных типов блоков"""
-    try:
-        blocks = block_registry.get_available_blocks()
-        return {"blocks": blocks}
-    except Exception as e:
-        logger.error(f"Ошибка получения списка блоков: {e}")
-        return {"blocks": []}
+app = FastAPI()
 
 
 @app.post("/api/run_bot/{bot_id}/")
-def run_bot(bot_id: str, token: Dict[str, str]):
+def run_bot(bot_id: str, token_data: TokenData):
+    """Запуск бота с использованием токена из переменных окружения или файла"""
+    # Получаем токен из переменных окружения или файла
+    token = get_bot_token(bot_id)
+    
+    if not token:
+        # В продакшене не принимаем токен из запроса
+        if os.getenv("ENVIRONMENT") == "production":
+            raise HTTPException(status_code=400, detail="Bot token must be set in environment variables")
+        
+        # В разработке используем токен из запроса
+        token = token_data.token
+        logging.warning(f"Token for bot {bot_id} not found in environment or file, using token from request")
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="Bot token is required")
+    
+    # Проверяем токен (убедимся, что это строка)
+    if isinstance(token, str) and not check_token_sync(token):
+        raise HTTPException(status_code=400, detail="Invalid bot token")
+    
+    # Остальной код запуска бота остается без изменений
     if bot_id in running_bots and running_bots[bot_id].is_alive():
         return {"status": "error", "message": "Бот уже запущен."}
 
@@ -1299,41 +1396,10 @@ def run_bot(bot_id: str, token: Dict[str, str]):
     if not scenario_data.nodes:
         return {"status": "error", "message": "Сценарий пуст."}
 
-    # Проверяем, используется ли переменная окружения BOT_TOKEN
-    env_token = os.getenv("BOT_TOKEN")
-    if env_token:
-        # Если используется переменная окружения, используем её для всех ботов
-        bot_token = env_token
-        logger.info("Используется токен из переменной окружения BOT_TOKEN для запуска бота")
-    else:
-        # Если нет переменной окружения, получаем токен из параметров или из файла
-        bot_token = token.get("token", "").strip()
-        if not bot_token:
-            # Если токен не передан в параметрах, пытаемся получить его из файла
-            tokens = load_tokens()
-            bot_token = tokens.get(bot_id, "").strip()
-
-    if not bot_token:
-        return {"status": "error", "message": "Токен не предоставлен."}
-
-    if not validate_telegram_token(bot_token):
-        return {"status": "error", "message": "Неверный формат токена."}
-
-    # Проверяем токен
-    try:
-        test_bot = telebot.TeleBot(bot_token)
-        bot_info = test_bot.get_me()
-        logger.info(f"✅ Токен верный. Бот: @{bot_info.username}")
-    except Exception as e:
-        if "Unauthorized" in str(e):
-            return {"status": "error", "message": "Неверный токен"}
-        else:
-            return {"status": "error", "message": f"Ошибка Telegram API: {str(e)}"}
-
     try:
         thread = threading.Thread(
             target=start_telegram_bot,
-            args=(bot_token, scenario_data.dict(), bot_id),
+            args=(token, scenario_data.dict(), bot_id),
             name=f"Bot_{bot_id}"
         )
         thread.daemon = True
@@ -1344,93 +1410,6 @@ def run_bot(bot_id: str, token: Dict[str, str]):
 
     except Exception as e:
         return {"status": "error", "message": f"Ошибка запуска: {str(e)}"}
-
-
-@app.post("/api/restart_bot/{bot_id}/")
-def restart_bot(bot_id: str):
-    """Останавливает и перезапускает бота"""
-    try:
-        logger.info(f"🔄 Начинаем перезапуск бота {bot_id}...")
-        
-        # 1. Сначала устанавливаем флаг остановки
-        bot_stop_flags[bot_id] = True
-        logger.info(f"⏹️ Установлен флаг остановки для бота {bot_id}")
-
-        # 2. Если бот запущен, ждем его остановки
-        if bot_id in running_bots:
-            thread = running_bots[bot_id]
-            logger.info(f"⏳ Ожидаем остановки старого экземпляра бота {bot_id}...")
-            
-            # Принудительно останавливаем polling если есть экземпляр бота
-            bot_instance_key = f"{bot_id}_instance"
-            if bot_instance_key in running_bots:
-                try:
-                    old_bot_instance = running_bots[bot_instance_key]
-                    logger.info(f".MouseEvent Принудительно останавливаем polling для бота {bot_id}")
-                    old_bot_instance.stop_polling()
-                    del running_bots[bot_instance_key]
-                    logger.info("✅ Polling остановлен принудительно")
-                except Exception as e:
-                    logger.warning(f"⚠️ Ошибка при остановке polling: {e}")
-            
-            # Ждем до 15 секунд для корректной остановки
-            max_wait_time = 15
-            wait_step = 0.5
-            waited = 0
-            
-            while thread.is_alive() and waited < max_wait_time:
-                time.sleep(wait_step)
-                waited += wait_step
-                if waited % 3 == 0:  # Логируем каждые 3 секунды
-                    logger.info(f"⏳ Ожидание остановки... ({waited}s/{max_wait_time}s)")
-            
-            if thread.is_alive():
-                logger.warning(f"⚠️ Бот {bot_id} не остановился за {max_wait_time}s, принудительно продолжаем")
-            else:
-                logger.info(f"✅ Старый экземпляр бота {bot_id} остановлен")
-            
-            # Удаляем из running_bots
-            del running_bots[bot_id]
-        else:
-            logger.info(f"ℹ️ Бот {bot_id} не был запущен, запускаем новый экземпляр")
-
-        # 3. Дополнительная пауза для полной очистки соединений Telegram
-        logger.info("⏳ Дополнительная пауза перед запуском нового экземпляра...")
-        time.sleep(5)  # Увеличиваем паузу до 5 секунд
-
-        # 4. Загружаем сценарий и токен
-        scenario_data = load_scenario(bot_id)
-        tokens = load_tokens()
-        bot_token = tokens.get(bot_id, "")
-
-        if not bot_token:
-            return {"status": "error", "message": "Токен не найден"}
-
-        if not scenario_data.nodes:
-            return {"status": "error", "message": "Сценарий пуст"}
-
-        # 5. Запускаем нового бота
-        logger.info(f"🚀 Запускаем новый экземпляр бота {bot_id}...")
-        
-        # Увеличиваем счетчик перезапусков
-        bot_restart_counter[bot_id] = bot_restart_counter.get(bot_id, 0) + 1
-        restart_num = bot_restart_counter[bot_id]
-        
-        thread = threading.Thread(
-            target=start_telegram_bot,
-            args=(bot_token, scenario_data.dict(), bot_id),
-            name=f"Bot_{bot_id}_restart_{restart_num}"
-        )
-        thread.daemon = True
-        thread.start()
-        running_bots[bot_id] = thread
-
-        logger.info(f"✅ Бот {bot_id} успешно перезапущен! (перезапуск #{restart_num})")
-        return {"status": "success", "message": f"Бот успешно перезапущен! (перезапуск #{restart_num})"}
-
-    except Exception as e:
-        logger.error(f"❌ Ошибка перезапуска бота {bot_id}: {e}")
-        return {"status": "error", "message": f"Ошибка перезапуска: {str(e)}"}
 
 
 @app.get("/api/stop_bot/{bot_id}/")
