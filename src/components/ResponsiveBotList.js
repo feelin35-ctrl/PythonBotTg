@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../api'; // Импортируем наш настроенный экземпляр axios
 import { useNavigate } from "react-router-dom";
 import styled from 'styled-components';
 import { breakpoints, mediaQueries } from '../styles/responsive';
@@ -181,7 +181,8 @@ const ResponsiveBotList = () => {
   const fetchBots = async () => {
     try {
       console.log("Запрашиваем список ботов...");
-      const response = await axios.get(`/api/get_bots/`);
+      // Используем наш настроенный экземпляр axios
+      const response = await api.get(`/api/get_bots/`);
       console.log("Получен список ботов:", response.data);
       // Добавляем проверку, что response.data.bots является массивом
       if (response.data && Array.isArray(response.data.bots)) {
@@ -213,11 +214,11 @@ const ResponsiveBotList = () => {
     try {
       // 1. Создаем бота
       console.log("Создаем бота...");
-      await axios.post(`/api/create_bot/?bot_id=${newBotName}`);
+      await api.post(`/api/create_bot/?bot_id=${newBotName}`);
 
       // 2. Сохраняем токен (исправленный URL)
       console.log("Сохраняем токен...");
-      await axios.post(`/api/save_token/${newBotName}/`, {
+      await api.post(`/api/save_token/${newBotName}/`, {
         token: botToken
       });
 
@@ -252,11 +253,11 @@ const ResponsiveBotList = () => {
         ]
       };
 
-      await axios.post(`/api/save_scenario/${newBotName}/`, initialScenario);
+      await api.post(`/api/save_scenario/${newBotName}/`, initialScenario);
 
       // 4. Проверяем, что токен сохранился
       console.log("Проверяем сохранение токена...");
-      const tokenCheck = await axios.get(`/api/get_token/${newBotName}/`);
+      const tokenCheck = await api.get(`/api/get_token/${newBotName}/`);
       console.log("Токен сохранен:", tokenCheck.data.token ? "да" : "нет");
 
       // Сбрасываем форму
@@ -279,8 +280,8 @@ const ResponsiveBotList = () => {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
-        await axios.delete(`/api/delete_bot/${botId}/`);
-        await axios.delete(`/api/delete_token/${botId}/`);
+        await api.delete(`/api/delete_bot/${botId}/`);
+        await api.delete(`/api/delete_token/${botId}/`);
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -321,7 +322,7 @@ const ResponsiveBotList = () => {
       
       setImportProgress("🚀 Импортируем бота...");
       
-      const response = await axios.post(`/api/import_bot/`, importData);
+      const response = await api.post(`/api/import_bot/`, importData);
       
       if (response.data.status === "success") {
         setImportProgress("");
@@ -358,7 +359,7 @@ const ResponsiveBotList = () => {
   const handleExportBot = async (botId) => {
     try {
       // Используем новый endpoint для экспорта ZIP-архива
-      const response = await fetch(`/api/export_bot_zip/${botId}/`, {
+      const response = await fetch(`http://localhost:8001/api/export_bot_zip/${botId}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -425,7 +426,7 @@ const ResponsiveBotList = () => {
     }
 
     try {
-      const response = await axios.post(`/api/rename_bot/${renamingBotId}/${renameValue}/`);
+      const response = await api.post(`/api/rename_bot/${renamingBotId}/${renameValue}/`);
       if (response.data.status === "success") {
         setRenamingBotId(null);
         setRenameValue("");

@@ -33,9 +33,28 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # ✅ Разрешаем запросы с фронта
+# Для продакшена можно задать через переменные окружения
+import os
+allowed_origins = [
+    "http://localhost:3001", 
+    "http://127.0.0.1:3001", 
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000", 
+    "http://localhost:3002", 
+    "http://127.0.0.1:3002", 
+    "http://localhost:3003", 
+    "http://127.0.0.1:3003", 
+    "http://45.150.9.70:8001"
+]
+
+# Добавляем дополнительные origins из переменной окружения
+additional_origins = os.getenv("ALLOWED_ORIGINS", "")
+if additional_origins:
+    allowed_origins.extend(additional_origins.split(","))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002", "http://127.0.0.1:3002", "http://localhost:3003", "http://127.0.0.1:3003", "http://45.150.9.70:8001"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,15 +125,22 @@ def load_tokens():
     env_token = os.getenv("BOT_TOKEN")
     if env_token:
         # Если есть переменная окружения, используем её
+        logger.info("Используется токен из переменной окружения BOT_TOKEN")
         return {"env_bot": env_token}
     
     # Если нет переменной окружения, используем файл как раньше
     if os.path.exists(TOKENS_FILE):
         try:
+            logger.info(f"Читаем токены из файла {TOKENS_FILE}")
             with open(TOKENS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
+                tokens = json.load(f)
+                logger.info(f"Загружены токены: {list(tokens.keys())}")
+                return tokens
+        except Exception as e:
+            logger.error(f"Ошибка загрузки токенов из файла: {e}")
             return {}
+    else:
+        logger.info(f"Файл токенов {TOKENS_FILE} не найден")
     return {}
 
 
@@ -1148,9 +1174,13 @@ def get_bot_name(bot_id: str):
     """Получает текущее имя бота из Telegram"""
     try:
         tokens = load_tokens()
+        logger.info(f"Все доступные токены: {list(tokens.keys())}")
+        logger.info(f"Запрошенный bot_id: {bot_id}")
         bot_token = tokens.get(bot_id, "")
+        logger.info(f"Найденный токен: {bot_token}")
         
         if not bot_token:
+            logger.error(f"Токен бота '{bot_id}' не найден")
             raise HTTPException(status_code=404, detail="Токен бота не найден")
         
         # Используем pyTelegramBotAPI для получения имени бота

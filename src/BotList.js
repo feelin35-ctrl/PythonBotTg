@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+// Удаляем импорт axios по умолчанию
+import api from './api'; // Импортируем наш настроенный экземпляр axios
 import { useNavigate } from "react-router-dom";
+
+// Удаляем axios.defaults.baseURL = 'http://localhost:8001'; так как теперь используем настроенный экземпляр
 
 function BotList() {
   const [bots, setBots] = useState([]);
@@ -17,8 +20,8 @@ function BotList() {
   const fetchBots = async () => {
     try {
       console.log("Запрашиваем список ботов...");
-      // Используем тот же URL, что и в других местах
-      const response = await axios.get(`/api/get_bots/`);
+      // Используем наш настроенный экземпляр axios
+      const response = await api.get(`/api/get_bots/`);
       console.log("Получен список ботов:", response.data);
       // Добавляем проверку, что response.data.bots является массивом
       if (response.data && Array.isArray(response.data.bots)) {
@@ -50,11 +53,11 @@ function BotList() {
   try {
     // 1. Создаем бота
     console.log("Создаем бота...");
-    await axios.post(`/api/create_bot/?bot_id=${newBotName}`);
+    await api.post(`/api/create_bot/?bot_id=${newBotName}`);
 
     // 2. Сохраняем токен (исправленный URL)
     console.log("Сохраняем токен...");
-    await axios.post(`/api/save_token/${newBotName}/`, {
+    await api.post(`/api/save_token/${newBotName}/`, {
       token: botToken
     });
 
@@ -89,11 +92,11 @@ function BotList() {
       ]
     };
 
-    await axios.post(`/api/save_scenario/${newBotName}/`, initialScenario);
+    await api.post(`/api/save_scenario/${newBotName}/`, initialScenario);
 
     // 4. Проверяем, что токен сохранился
     console.log("Проверяем сохранение токена...");
-    const tokenCheck = await axios.get(`/api/get_token/${newBotName}/`);
+    const tokenCheck = await api.get(`/api/get_token/${newBotName}/`);
     console.log("Токен сохранен:", tokenCheck.data.token ? "да" : "нет");
 
     // Сбрасываем форму
@@ -116,8 +119,8 @@ function BotList() {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
-        await axios.delete(`/api/delete_bot/${botId}/`);
-        await axios.delete(`/api/delete_token/${botId}/`);
+        await api.delete(`/api/delete_bot/${botId}/`);
+        await api.delete(`/api/delete_token/${botId}/`);
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -158,7 +161,7 @@ function BotList() {
       
       setImportProgress("🚀 Импортируем бота...");
       
-      const response = await axios.post(`/api/import_bot/`, importData);
+      const response = await api.post(`/api/import_bot/`, importData);
       
       if (response.data.status === "success") {
         setImportProgress("");
@@ -195,7 +198,7 @@ function BotList() {
   const handleExportBot = async (botId) => {
     try {
       // Используем новый endpoint для экспорта ZIP-архива
-      const response = await fetch(`/api/export_bot_zip/${botId}/`, {
+      const response = await fetch(`http://localhost:8001/api/export_bot_zip/${botId}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -262,7 +265,7 @@ function BotList() {
     }
 
     try {
-      const response = await axios.post(`/api/rename_bot/${renamingBotId}/${renameValue}/`);
+      const response = await api.post(`/api/rename_bot/${renamingBotId}/${renameValue}/`);
       if (response.data.status === "success") {
         setRenamingBotId(null);
         setRenameValue("");
@@ -351,69 +354,50 @@ function BotList() {
                   cursor: "pointer" 
                 }}
               >
-                📂 Импортировать бота
+                Импортировать бота
               </button>
             </div>
           ) : (
             <div>
-              <div style={{ marginBottom: "15px" }}>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Выберите файл экспорта (.json):
-                </label>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => setImportFile(e.target.files[0])}
-                  style={{ 
-                    width: "100%", 
-                    padding: "8px", 
-                    border: "1px solid #ccc", 
-                    borderRadius: "4px" 
-                  }}
-                />
-              </div>
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => setImportFile(e.target.files[0])}
+                style={{ marginBottom: "15px", width: "100%" }}
+              />
               
               {importProgress && (
-                <div style={{ 
-                  marginBottom: "15px", 
-                  padding: "10px", 
-                  backgroundColor: "#e7f3ff", 
-                  border: "1px solid #bee5eb", 
-                  borderRadius: "4px", 
-                  color: "#0c5460" 
-                }}>
-                  {importProgress}
-                </div>
+                <p style={{ color: "#17a2b8", marginBottom: "15px" }}>{importProgress}</p>
               )}
               
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <button 
-                  onClick={handleImportBot} 
+                  onClick={handleImportBot}
                   disabled={!importFile || importProgress}
                   style={{ 
                     padding: "10px 15px", 
-                    backgroundColor: importFile && !importProgress ? "#28a745" : "#6c757d", 
+                    backgroundColor: importProgress ? "#6c757d" : "#28a745", 
                     color: "white", 
                     border: "none", 
-                    borderRadius: "44px", 
-                    cursor: importFile && !importProgress ? "pointer" : "not-allowed" 
+                    borderRadius: "4px", 
+                    cursor: importProgress ? "not-allowed" : "pointer",
+                    opacity: importProgress ? 0.7 : 1
                   }}
                 >
-                  🚀 Импортировать
+                  {importProgress ? "Импортируем..." : "Импортировать"}
                 </button>
                 <button 
                   onClick={handleCancelImport}
-                  disabled={importProgress}
                   style={{ 
                     padding: "10px 15px", 
                     backgroundColor: "#6c757d", 
                     color: "white", 
                     border: "none", 
                     borderRadius: "4px", 
-                    cursor: importProgress ? "not-allowed" : "pointer" 
+                    cursor: "pointer" 
                   }}
                 >
-                  ❌ Отмена
+                  Отмена
                 </button>
               </div>
             </div>
@@ -423,139 +407,157 @@ function BotList() {
 
       {/* Список ботов */}
       <div>
-        <h3>Мои боты ({Array.isArray(bots) ? bots.length : 0})</h3>
-        {!Array.isArray(bots) || bots.length === 0 ? (
-          <p>Нет созданных ботов</p>
+        <h2 style={{ marginBottom: "20px" }}>Список ботов</h2>
+        
+        {bots.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#666" }}>Нет созданных ботов. Создайте или импортируйте бота.</p>
         ) : (
           <div style={{ 
             display: "grid", 
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", 
-            gap: "15px" 
+            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", 
+            gap: "20px" 
           }}>
-            {Array.isArray(bots) && bots.map((bot) => (
-              <div key={bot} style={{ 
-                padding: "15px", 
-                border: "1px solid #ddd", 
-                borderRadius: "8px",
-                display: "flex", 
-                flexDirection: "column",
-                gap: "10px"
-              }}>
-                {renamingBotId === bot ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-                    <input
-                      type="text"
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      placeholder="Новое имя бота"
-                      style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          confirmRename();
-                        } else if (e.key === 'Escape') {
-                          cancelRename();
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <div style={{ display: "flex", gap: "5px" }}>
+            {bots.map(botId => (
+              <div 
+                key={botId} 
+                style={{ 
+                  padding: "15px", 
+                  border: "1px solid #ddd", 
+                  borderRadius: "8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px"
+                }}
+              >
+                <div style={{ fontWeight: "bold", fontSize: "16px", textAlign: "center" }}>
+                  {botId}
+                </div>
+                
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", justifyContent: "center" }}>
+                  <button 
+                    onClick={() => navigate(`/editor/${botId}`)}
+                    style={{ 
+                      padding: "8px 12px", 
+                      backgroundColor: "#007bff", 
+                      color: "white", 
+                      border: "none", 
+                      borderRadius: "4px", 
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      flex: "1 1 auto",
+                      minWidth: "100px",
+                      justifyContent: "center"
+                    }}
+                  >
+                    🖊️ Редактор
+                  </button>
+                  
+                  <button 
+                    onClick={() => handleExportBot(botId)}
+                    style={{ 
+                      padding: "8px 12px", 
+                      backgroundColor: "#28a745", 
+                      color: "white", 
+                      border: "none", 
+                      borderRadius: "4px", 
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      flex: "1 1 auto",
+                      minWidth: "100px",
+                      justifyContent: "center"
+                    }}
+                  >
+                    📤 Экспорт
+                  </button>
+                  
+                  {renamingBotId === botId ? (
+                    <div style={{ display: "flex", gap: "5px", width: "100%" }}>
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        placeholder="Новое имя"
+                        style={{ 
+                          flex: "1", 
+                          padding: "8px", 
+                          border: "1px solid #ccc", 
+                          borderRadius: "4px",
+                          minWidth: "0"
+                        }}
+                      />
                       <button 
                         onClick={confirmRename}
-                        style={{ padding: "5px 10px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", flex: 1 }}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#28a745", 
+                          color: "white", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer"
+                        }}
                       >
                         ✓
                       </button>
                       <button 
                         onClick={cancelRename}
-                        style={{ padding: "5px 10px", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", flex: 1 }}
+                        style={{ 
+                          padding: "8px 12px", 
+                          backgroundColor: "#6c757d", 
+                          color: "white", 
+                          border: "none", 
+                          borderRadius: "4px", 
+                          cursor: "pointer"
+                        }}
                       >
                         ✕
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontWeight: "bold", fontSize: "16px", textAlign: "center" }}>{bot}</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", justifyContent: "center" }}>
-                      <button 
-                        onClick={() => startRename(bot)}
-                        style={{ 
-                          padding: "8px 12px", 
-                          backgroundColor: "#ffc107", 
-                          color: "black", 
-                          border: "none", 
-                          borderRadius: "4px", 
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          flex: "1 1 auto",
-                          minWidth: "120px",
-                          justifyContent: "center"
-                        }}
-                      >
-                        ✏️ Переименовать
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/editor/${bot}`)}
-                        style={{ 
-                          padding: "8px 12px", 
-                          backgroundColor: "#007bff", 
-                          color: "white", 
-                          border: "none", 
-                          borderRadius: "4px", 
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          flex: "1 1 auto",
-                          minWidth: "120px",
-                          justifyContent: "center"
-                        }}
-                      >
-                        ✏️ Редактировать
-                      </button>
-                      <button 
-                        onClick={() => handleExportBot(bot)}
-                        style={{ 
-                          padding: "8px 12px", 
-                          backgroundColor: "#17a2b8", 
-                          color: "white", 
-                          border: "none", 
-                          borderRadius: "4px", 
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          flex: "1 1 auto",
-                          minWidth: "120px",
-                          justifyContent: "center"
-                        }}
-                      >
-                        📤 Экспорт
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteBot(bot)}
-                        style={{ 
-                          padding: "8px 12px", 
-                          backgroundColor: "#dc3545", 
-                          color: "white", 
-                          border: "none", 
-                          borderRadius: "4px", 
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          flex: "1 1 auto",
-                          minWidth: "120px",
-                          justifyContent: "center"
-                        }}
-                      >
-                        🗑️ Удалить
-                      </button>
-                    </div>
-                  </>
-                )}
+                  ) : (
+                    <button 
+                      onClick={() => startRename(botId)}
+                      style={{ 
+                        padding: "8px 12px", 
+                        backgroundColor: "#ffc107", 
+                        color: "black", 
+                        border: "none", 
+                        borderRadius: "4px", 
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        flex: "1 1 auto",
+                        minWidth: "100px",
+                        justifyContent: "center"
+                      }}
+                    >
+                      🔄 Переименовать
+                    </button>
+                  )}
+                  
+                  <button 
+                    onClick={() => handleDeleteBot(botId)}
+                    style={{ 
+                      padding: "8px 12px", 
+                      backgroundColor: "#dc3545", 
+                      color: "white", 
+                      border: "none", 
+                      borderRadius: "4px", 
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      flex: "1 1 auto",
+                      minWidth: "100px",
+                      justifyContent: "center"
+                    }}
+                  >
+                    🗑️ Удалить
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -563,6 +565,6 @@ function BotList() {
       </div>
     </div>
   );
-}
+};
 
 export default BotList;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { applyNodeChanges, applyEdgeChanges, addEdge } from 'reactflow';
-import axios from 'axios';
+import api from '../../api'; // Импортируем наш настроенный экземпляр axios
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,7 +25,8 @@ export const useBotEditor = () => {
   // Функция для проверки статуса бота
   const checkBotStatus = useCallback(async () => {
     try {
-      const response = await axios.get(`/api/bot_running_status/${botId}/`);
+      // Используем наш настроенный экземпляр axios
+      const response = await api.get(`/api/bot_running_status/${botId}/`);
       setIsBotRunning(response.data.is_running);
     } catch (error) {
       console.error('Ошибка проверки статуса бота:', error);
@@ -167,7 +168,7 @@ export const useBotEditor = () => {
   });
 
   useEffect(() => {
-    axios.get(`/api/get_scenario/${botId}/`)
+    api.get(`/api/get_scenario/${botId}/`)
       .then((res) => {
         console.log('Loaded scenario data:', res.data);
         const loadedNodes = (res.data.nodes || []).map(n => ({
@@ -203,7 +204,7 @@ export const useBotEditor = () => {
         console.error('Error loading scenario:', error);
       });
 
-    axios.get(`/api/get_token/${botId}/`)
+    api.get(`/api/get_token/${botId}/`)
       .then(res => {
         console.log('Loaded bot token:', res.data.token);
         setBotToken(res.data.token || '');
@@ -211,7 +212,7 @@ export const useBotEditor = () => {
       .catch(console.error);
       
     // Загружаем имя бота
-    axios.get(`/api/get_bot_name/${botId}/`)
+    api.get(`/api/get_bot_name/${botId}/`)
       .then(res => {
         if (res.data.status === 'success') {
           console.log('Loaded bot name:', res.data.name);
@@ -233,7 +234,7 @@ export const useBotEditor = () => {
 
     const cleanEdges = edges.map(({ animated, style, markerEnd, ...rest }) => rest);
 
-    axios.post(`/api/save_scenario/${botId}/`, {
+    api.post(`/api/save_scenario/${botId}/`, {
       nodes: cleanNodes,
       edges: cleanEdges,
     })
@@ -256,7 +257,7 @@ export const useBotEditor = () => {
   }, [botId, initialNodes, edges]);
 
   const saveToken = useCallback(() => {
-    axios.post(`/api/save_token/${botId}/`, { token: botToken })
+    api.post(`/api/save_token/${botId}/`, { token: botToken })
       .then(() => {
         // На мобильных устройствах показываем уведомление через alert
         if (window.innerWidth <= 768) {
@@ -288,7 +289,7 @@ export const useBotEditor = () => {
     }
 
     try {
-      const response = await axios.post(`/api/set_bot_name/${botId}/`, { name: botName });
+      const response = await api.post(`/api/set_bot_name/${botId}/`, { name: botName });
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
@@ -319,7 +320,7 @@ export const useBotEditor = () => {
 
     setLoadingStatus(true);
     try {
-      const response = await axios.post(`/api/run_bot/${botId}/`, { token: botToken });
+      const response = await api.post(`/api/run_bot/${botId}/`, { token: botToken });
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
@@ -354,7 +355,7 @@ export const useBotEditor = () => {
 
     setLoadingStatus(true);
     try {
-      const response = await axios.post(`/api/restart_bot/${botId}/`);
+      const response = await api.post(`/api/restart_bot/${botId}/`);
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
@@ -379,7 +380,7 @@ export const useBotEditor = () => {
   const stopBot = useCallback(async () => {
     setLoadingStatus(true);
     try {
-      const response = await axios.get(`/api/stop_bot/${botId}/`);
+      const response = await api.get(`/api/stop_bot/${botId}/`);
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
