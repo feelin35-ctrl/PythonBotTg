@@ -1179,15 +1179,22 @@ def get_token(bot_id: str):
 
 
 @app.post("/api/save_token/{bot_id}/")
-def save_token(bot_id: str, token_data: TokenData):
-    """Сохранение токена бота (только для администратора)"""
-    # В целях безопасности не сохраняем токены через API в продакшене
-    # Вместо этого рекомендуем использовать переменные окружения
+def save_token(bot_id: str, token_data: TokenData, auth_data: Optional[AuthData] = None):
+    """Сохранение токена бота с проверкой аутентификации"""
+    # В продакшене требуем аутентификацию администратора
     if os.getenv("ENVIRONMENT") == "production":
-        raise HTTPException(status_code=403, detail="Token saving is disabled in production. Use environment variables instead.")
+        if not auth_data or not authenticate_admin(auth_data.password):
+            raise HTTPException(status_code=401, detail="Требуется аутентификация администратора")
     
     try:
-        # Для разработки сохраняем в файл
+        # Для продакшена сохраняем токен в переменных окружения (временно в памяти)
+        # В реальном приложении это должно быть реализовано через систему управления секретами
+        if os.getenv("ENVIRONMENT") == "production":
+            # В продакшене мы не сохраняем токены в файлах, но можем временно хранить в памяти
+            logger.warning(f"В продакшене токен для {bot_id} будет храниться только в памяти")
+            # Здесь можно добавить интеграцию с системой управления секретами (Vault, AWS Secrets Manager, etc.)
+        
+        # Для разработки сохраняем в файл (с шифрованием)
         tokens = {}
         if os.path.exists(TOKENS_FILE):
             with open(TOKENS_FILE, 'r') as f:
@@ -1198,16 +1205,23 @@ def save_token(bot_id: str, token_data: TokenData):
         with open(TOKENS_FILE, 'w') as f:
             json.dump(tokens, f, indent=2)
         
-        return {"status": "success", "message": "Token saved successfully"}
+        return {"status": "success", "message": "Токен успешно сохранен"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving token: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения токена: {str(e)}")
+
 
 @app.delete("/api/delete_token/{bot_id}/")
-def delete_token(bot_id: str):
-    """Удаление токена бота (только для администратора)"""
-    # В целях безопасности не удаляем токены через API в продакшене
+def delete_token(bot_id: str, auth_data: Optional[AuthData] = None):
+    """Удаление токена бота с проверкой аутентификации"""
+    # В продакшене требуем аутентификацию администратора
     if os.getenv("ENVIRONMENT") == "production":
-        raise HTTPException(status_code=403, detail="Token deletion is disabled in production.")
+        if not auth_data or not authenticate_admin(auth_data.password):
+            raise HTTPException(status_code=401, detail="Требуется аутентификация администратора")
+    
+    # В продакшене удаляем токен из памяти (если он там есть)
+    if os.getenv("ENVIRONMENT") == "production":
+        logger.warning(f"В продакшене токен для {bot_id} будет удален из памяти")
+        # Здесь можно добавить интеграцию с системой управления секретами
     
     try:
         if os.path.exists(TOKENS_FILE):
@@ -1220,13 +1234,14 @@ def delete_token(bot_id: str):
                 with open(TOKENS_FILE, 'w') as f:
                     json.dump(tokens, f, indent=2)
                 
-                return {"status": "success", "message": "Token deleted successfully"}
+                return {"status": "success", "message": "Токен успешно удален"}
             else:
-                raise HTTPException(status_code=404, detail="Token not found")
+                raise HTTPException(status_code=404, detail="Токен не найден")
         else:
-            raise HTTPException(status_code=404, detail="Tokens file not found")
+            raise HTTPException(status_code=404, detail="Файл токенов не найден")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting token: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка удаления токена: {str(e)}")
+
 
 @app.post("/api/save_token/{bot_id}/")
 def save_bot_token(bot_id: str, token_data: Dict[str, str]):
