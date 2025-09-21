@@ -21,6 +21,7 @@ function BotList() {
     try {
       console.log("Запрашиваем список ботов...");
       // Используем наш настроенный экземпляр axios
+      console.log("Making API call to /api/get_bots/ with api instance");
       const response = await api.get(`/api/get_bots/`);
       console.log("Получен список ботов:", response.data);
       // Добавляем проверку, что response.data.bots является массивом
@@ -212,37 +213,27 @@ function BotList() {
 
   const handleExportBot = async (botId) => {
     try {
-      // Используем новый endpoint для экспорта ZIP-архива
-      const response = await fetch(`http://localhost:8001/api/export_bot_zip/${botId}/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Use our configured API instance instead of direct fetch
+      const response = await api.post(`/api/export_bot_zip/${botId}/`);
       
-      if (response.ok) {
-        // Получаем blob и создаем ссылку для скачивания
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        
-        // Создаем ссылку для скачивания
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `bot_${botId}_deploy.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        alert(`✅ Бот "${botId}" экспортирован в ZIP-архив`);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Ошибка экспорта");
-      }
+      // Since we're using axios, the response structure is different
+      // The actual blob is in response.data
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
       
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bot_${botId}_deploy.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert(`✅ Бот "${botId}" экспортирован в ZIP-архив`);
     } catch (error) {
       console.error("Ошибка экспорта:", error);
-      alert("Ошибка экспорта: " + (error.message || "Неизвестная ошибка"));
+      alert("Ошибка экспорта: " + (error.response?.data?.message || error.message || "Неизвестная ошибка"));
     }
   };
 

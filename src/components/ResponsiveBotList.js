@@ -373,37 +373,27 @@ const ResponsiveBotList = () => {
 
   const handleExportBot = async (botId) => {
     try {
-      // Используем новый endpoint для экспорта ZIP-архива
-      const response = await fetch(`http://localhost:8001/api/export_bot_zip/${botId}/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Use our configured API instance instead of direct fetch
+      const response = await api.post(`/api/export_bot_zip/${botId}/`, {}, {
+        responseType: 'blob' // Important for handling binary data
       });
       
-      if (response.ok) {
-        // Получаем blob и создаем ссылку для скачивания
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        
-        // Создаем ссылку для скачивания
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `bot_${botId}_deploy.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        alert(`✅ Бот "${botId}" экспортирован в ZIP-архив`);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Ошибка экспорта");
-      }
+      // Since we're using axios with responseType: 'blob', the response data is already a Blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bot_${botId}_deploy.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert(`✅ Бот "${botId}" экспортирован в ZIP-архив`);
     } catch (error) {
       console.error("Ошибка экспорта:", error);
-      alert("Ошибка экспорта: " + (error.message || "Неизвестная ошибка"));
+      alert("Ошибка экспорта: " + (error.response?.data?.message || error.message || "Неизвестная ошибка"));
     }
   };
 

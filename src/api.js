@@ -4,6 +4,11 @@ import { getApiBaseUrl } from './utils/apiHelper';
 // Получаем базовый URL для API
 const API_BASE_URL = getApiBaseUrl();
 
+// Добавляем отладочную информацию
+console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL || 'not set');
+console.log('Calculated API_BASE_URL:', API_BASE_URL);
+
 // Создаем экземпляр axios с базовой конфигурацией
 const api = axios.create({
   baseURL: API_BASE_URL,
