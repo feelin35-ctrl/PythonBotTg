@@ -1,5 +1,3 @@
-import api from './api'; // Import our configured axios instance
-
 // Утилита для определения правильного API URL в зависимости от окружения
 export const getApiBaseUrl = () => {
   // Для разработки используем локальный сервер
@@ -20,9 +18,16 @@ export const getApiBaseUrl = () => {
 // Функция для проверки доступности API
 export const checkApiAvailability = async (baseUrl) => {
   try {
-    // Use our configured API instance instead of direct fetch
-    const response = await api.get('/api/get_bots/');
-    return response.status === 200;
+    // For API availability check, we'll use fetch directly to avoid circular dependencies
+    const response = await fetch(`${baseUrl}/api/get_bots/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 5000, // 5 секунд таймаут
+    });
+    
+    return response.ok;
   } catch (error) {
     console.error('API availability check failed:', error);
     return false;
