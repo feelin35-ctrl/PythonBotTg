@@ -106,6 +106,11 @@ const Sidebar = () => {
       description: 'Обработка естественного языка'
     },
     {
+      type: 'keyword_processor',
+      title: 'Keyword Processor',
+      description: 'Обработка по ключевым словам'
+    },
+    {
       type: 'end',
       title: 'End',
       description: 'Конец сценария'

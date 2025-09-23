@@ -3,6 +3,7 @@ import api from '../api'; // Импортируем наш настроенны�
 import { useNavigate } from "react-router-dom";
 import styled from 'styled-components';
 import { breakpoints, mediaQueries } from '../styles/responsive';
+import { useAuth } from '../components/Auth/AuthContext';
 
 // Стили для адаптивного дизайна
 const Container = styled.div`
@@ -166,7 +167,8 @@ const ActionButton = styled.button`
   }
 `;
 
-const ResponsiveBotList = () => {
+function ResponsiveBotList() {
+  const { user } = useAuth();
   const [bots, setBots] = useState([]);
   const [newBotName, setNewBotName] = useState("");
   const [botToken, setBotToken] = useState("");
@@ -181,33 +183,20 @@ const ResponsiveBotList = () => {
   const fetchBots = async () => {
     try {
       console.log("Запрашиваем список ботов...");
-      // Используем наш настроенный экземпляр axios
-      const response = await api.get(`/api/get_bots/`);
+      
+      // Pass user ID as query parameter if user is logged in
+      const params = user ? { user_id: user.id } : {};
+      const response = await api.get(`/api/get_bots/`, { params });
+      
       console.log("Получен список ботов:", response.data);
-      // Добавляем проверку, что response.data.bots является массивом
       if (response.data && Array.isArray(response.data.bots)) {
         setBots(response.data.bots);
       } else {
-        setBots([]); // Устанавливаем пустой массив, если данные некорректны
+        setBots([]);
       }
     } catch (error) {
       console.error("Ошибка при получении списка ботов:", error);
-      
-      // Проверяем таймаут
-      if (error.code === 'ECONNABORTED') {
-        console.error('Connection timeout - please check if the backend server is running');
-        // Можно показать пользователю уведомление
-        if (window.innerWidth <= 768) {
-          alert(`Ошибка подключения к серверу. Пожалуйста, проверьте интернет-соединение.`);
-        }
-      } else if (!error.response) {
-        console.error('Network error - please check your connection');
-        if (window.innerWidth <= 768) {
-          alert(`Ошибка сети. Пожалуйста, проверьте интернет-соединение.`);
-        }
-      }
-      
-      setBots([]); // Устанавливаем пустой массив в случае ошибки
+      setBots([]);
     }
   };
 
@@ -227,9 +216,31 @@ const ResponsiveBotList = () => {
     }
 
     try {
-      // 1. Создаем бота
+      // 1. Создаем бота with user ID if user is logged in
       console.log("Создаем бота...");
-      await api.post(`/api/create_bot/?bot_id=${newBotName}`);
+      console.log("Current user:", user);
+      
+      // Добавляем дополнительное логирование для отладки
+      console.log("User data before API call:", user);
+      if (user) {
+        console.log("User ID:", user.id);
+        console.log("User type:", typeof user.id);
+      }
+      
+      // Формируем параметры правильно через объект params
+      const params = {
+        bot_id: newBotName
+      };
+      
+      // Добавляем user_id только если он существует
+      if (user && user.id) {
+        params.user_id = user.id;
+      }
+      
+      console.log("API params:", params);
+      
+      // Используем правильный способ передачи параметров в Axios
+      await api.post(`/api/create_bot/`, null, { params });
 
       // 2. Сохраняем токен (исправленный URL)
       console.log("Сохраняем токен...");
@@ -295,8 +306,8 @@ const ResponsiveBotList = () => {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
+        // Удаляем бота (это также удалит токен на бэкенде)
         await api.delete(`/api/delete_bot/${botId}/`);
-        await api.delete(`/api/delete_token/${botId}/`);
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -337,7 +348,9 @@ const ResponsiveBotList = () => {
       
       setImportProgress("🚀 Импортируем бота...");
       
-      const response = await api.post(`/api/import_bot/`, importData);
+      // Pass user ID as query parameter if user is logged in
+      const params = user ? { user_id: user.id } : {};
+      const response = await api.post(`/api/import_bot/`, importData, { params });
       
       if (response.data.status === "success") {
         setImportProgress("");
@@ -446,7 +459,35 @@ const ResponsiveBotList = () => {
 
   return (
     <Container>
-      <Title>Конструктор Telegram ботов</Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <Title style={{ margin: 0 }}>Конструктор Telegram ботов</Title>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          {user && (
+            <span style={{ fontWeight: "bold", color: "#333" }}>
+              {user.username}
+            </span>
+          )}
+          <button 
+            onClick={() => {
+              // Clear user data from localStorage
+              localStorage.removeItem('user');
+              // Redirect to login page
+              navigate('/login');
+            }}
+            style={{ 
+              padding: "8px 16px", 
+              backgroundColor: "#dc3545", 
+              color: "white", 
+              border: "none", 
+              borderRadius: "4px", 
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Выйти
+          </button>
+        </div>
+      </div>
 
       <FormGrid>
         {/* Создание бота */}

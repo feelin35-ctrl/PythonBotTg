@@ -77,15 +77,28 @@ export const useBotEditor = () => {
 
     console.log('Dropping node at position:', position, 'type:', type);
 
+    // Инициализируем данные в зависимости от типа блока
+    let initialData = {
+      label: type === 'message' ? 'Новое сообщение' : '',
+      blockType: type,
+      onChange: onDataChange
+    };
+
+    // Для блока keyword_processor добавляем начальные значения
+    if (type === 'keyword_processor') {
+      initialData = {
+        ...initialData,
+        keywords: [],
+        caseSensitive: false,
+        matchMode: 'exact'
+      };
+    }
+
     const newNode = {
       id: uuidv4(),
       type: 'editable',
       position,
-      data: {
-        label: type === 'message' ? 'Новое сообщение' : '',
-        blockType: type,
-        onChange: onDataChange
-      }
+      data: initialData
     };
 
     setInitialNodes(nds => [...nds, newNode]);
@@ -196,7 +209,11 @@ export const useBotEditor = () => {
           data: {
             ...n.data,
             blockType: n.data?.blockType || n.type,
-            onChange: onDataChange
+            onChange: onDataChange,
+            // Для блока keyword_processor восстанавливаем пользовательские данные
+            keywords: n.data?.blockType === 'keyword_processor' ? (n.data?.keywords || []) : n.data?.keywords,
+            caseSensitive: n.data?.blockType === 'keyword_processor' ? (n.data?.caseSensitive || false) : n.data?.caseSensitive,
+            matchMode: n.data?.blockType === 'keyword_processor' ? (n.data?.matchMode || 'exact') : n.data?.matchMode
           },
         }));
 
@@ -246,6 +263,19 @@ export const useBotEditor = () => {
   const saveScenario = useCallback(() => {
     const cleanNodes = initialNodes.map(({ data, ...rest }) => {
       const { onChange, ...cleanData } = data;
+      // Для блока keyword_processor сохраняем пользовательские данные
+      if (data.blockType === 'keyword_processor') {
+        return { 
+          ...rest, 
+          type: data.blockType, 
+          data: {
+            ...cleanData,
+            keywords: data.keywords || [],
+            caseSensitive: data.caseSensitive || false,
+            matchMode: data.matchMode || 'exact'
+          } 
+        };
+      }
       return { ...rest, type: data.blockType, data: cleanData };
     });
 
@@ -273,24 +303,60 @@ export const useBotEditor = () => {
     });
   }, [botId, initialNodes, edges]);
 
-  const saveToken = useCallback(() => {
-    // Для безопасности не сохраняем токены через API в продакшене
-    // Вместо этого сохраняем в локальном хранилище браузера (только для разработки)
-    if (process.env.NODE_ENV === 'development') {
-      localStorage.setItem(`botToken_${botId}`, botToken);
+  const saveToken = useCallback(async () => {
+    // Получаем информацию о текущем пользователе из localStorage
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
-        alert("Токен сохранен локально (только для разработки)!");
+        alert("Пользователь не авторизован");
       } else {
-        console.log("Токен сохранен локально (только для разработки)");
+        console.log("Пользователь не авторизован");
       }
-    } else {
-      // В продакшене не сохраняем токены в браузере
+      return;
+    }
+
+    let user;
+    try {
+      user = JSON.parse(storedUser);
+    } catch (e) {
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
-        alert("В продакшене токены должны быть установлены через переменные окружения!");
+        alert("Ошибка получения данных пользователя");
       } else {
-        console.log("В продакшене токены должны быть установлены через переменные окружения");
+        console.log("Ошибка получения данных пользователя");
+      }
+      return;
+    }
+
+    try {
+      // Сохраняем токен в базе данных
+      await api.post(`/api/user/save_token/`, {
+        user_id: user.id,
+        bot_id: botId,
+        token: botToken
+      });
+
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Токен успешно сохранен в базе данных!");
+      } else {
+        console.log("Токен успешно сохранен в базе данных");
+      }
+    } catch (err) {
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Ошибка сохранения токена: " + (err.response?.data?.message || err.message));
+      } else {
+        console.error("Ошибка сохранения токена:", err.response?.data?.message || err.message);
+      }
+      
+      // В случае ошибки сохраняем в localStorage как резервный вариант
+      localStorage.setItem(`botToken_${botId}`, botToken);
+      if (window.innerWidth <= 768) {
+        alert("Токен сохранен локально (резервный вариант)!");
+      } else {
+        console.log("Токен сохранен локально (резервный вариант)");
       }
     }
   }, [botId, botToken]);
@@ -339,6 +405,7 @@ export const useBotEditor = () => {
 
     setLoadingStatus(true);
     try {
+      // Исправляем отправку токена в правильном формате
       const response = await api.post(`/api/run_bot/${botId}/`, { token: botToken });
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {

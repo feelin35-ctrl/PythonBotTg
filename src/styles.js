@@ -18,6 +18,7 @@ export const colors = {
   file: "#d4d4aa",
   nlp_response: "#f0f8ff",
   delay: "#ffe4b5",
+  keyword_processor: "#FF9800",
 };
 
 export const nodeLabels = {
@@ -40,6 +41,7 @@ export const nodeLabels = {
   file: "Файлы",
   nlp_response: "NLP Ответ",
   delay: "Задержка",
+  keyword_processor: "Обработка по ключевым словам",
 };
 
 export const nodeTypes = Object.keys(nodeLabels);

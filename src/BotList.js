@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
-// Удаляем импорт axios по умолчанию
+import React, { useState, useEffect, useCallback } from "react";
 import api from './api'; // Импортируем наш настроенный экземпляр axios
 import { useNavigate } from "react-router-dom";
-
-// Удаляем axios.defaults.baseURL = 'http://localhost:8001'; так как теперь используем настроенный экземпляр
+import { useAuth } from './components/Auth/AuthContext';
 
 function BotList() {
+  const { user } = useAuth();
   const [bots, setBots] = useState([]);
   const [newBotName, setNewBotName] = useState("");
   const [botToken, setBotToken] = useState("");
@@ -17,12 +16,21 @@ function BotList() {
   const [renameValue, setRenameValue] = useState("");
   const navigate = useNavigate();
 
-  const fetchBots = async () => {
+  const fetchBots = useCallback(async () => {
     try {
       console.log("Запрашиваем список ботов...");
       // Используем наш настроенный экземпляр axios
       console.log("Making API call to /api/get_bots/ with api instance");
-      const response = await api.get(`/api/get_bots/`);
+      
+      // Debug logging
+      console.log("Current user:", user);
+      
+      // Pass user ID as query parameter if user is logged in
+      const params = user ? { user_id: user.id } : {};
+      console.log("API params:", params);
+      
+      const response = await api.get(`/api/get_bots/`, { params });
+      
       console.log("Получен список ботов:", response.data);
       // Добавляем проверку, что response.data.bots является массивом
       if (response.data && Array.isArray(response.data.bots)) {
@@ -49,11 +57,11 @@ function BotList() {
       
       setBots([]); // Устанавливаем пустой массив в случае ошибки
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchBots();
-  }, []);
+  }, [fetchBots]);
 
   const handleCreateBot = async () => {
     if (!newBotName.trim()) {
@@ -67,9 +75,33 @@ function BotList() {
     }
 
     try {
-      // 1. Создаем бота
+      // 1. Создаем бота with user ID if user is logged in
       console.log("Создаем бота...");
-      await api.post(`/api/create_bot/?bot_id=${newBotName}`);
+      console.log("Current user:", user);
+      
+      // Добавляем дополнительную проверку для user_id
+      let userId = null;
+      if (user && user.id) {
+        userId = user.id;
+        console.log("Using user ID from context:", userId);
+      } else {
+        console.log("No valid user ID found in context");
+      }
+      
+      // Формируем параметры правильно через объект params
+      const params = {
+        bot_id: newBotName
+      };
+      
+      // Добавляем user_id только если он существует
+      if (userId) {
+        params.user_id = userId;
+      }
+      
+      console.log("API params:", params);
+      
+      // Используем правильный способ передачи параметров в Axios
+      await api.post(`/api/create_bot/`, null, { params });
 
       // 2. В целях безопасности не сохраняем токены через API в продакшене
       // Вместо этого сохраняем в локальном хранилище браузера (только для разработки)
@@ -135,8 +167,8 @@ function BotList() {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
+        // Удаляем бота (это также удалит токен на бэкенде)
         await api.delete(`/api/delete_bot/${botId}/`);
-        await api.delete(`/api/delete_token/${botId}/`);
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -187,7 +219,9 @@ function BotList() {
       // Удаляем токен из данных для импорта перед отправкой на сервер
       const { token, ...safeImportData } = importData;
       
-      const response = await api.post(`/api/import_bot/`, safeImportData);
+      // Pass user ID as query parameter if user is logged in
+      const params = user ? { user_id: user.id } : {};
+      const response = await api.post(`/api/import_bot/`, safeImportData, { params });
       
       if (response.data.status === "success") {
         setImportProgress("");
@@ -198,7 +232,7 @@ function BotList() {
         console.log("Обновляем список ботов после импорта...");
         await fetchBots();
       
-        alert(`✅ ${response.data.message}\n🔖 Бот: @${response.data.bot_info?.username || 'неизвестно'}\n\nВ целях безопасности токен сохранен локально (только для разработки). Для продакшена используйте переменные окружения.`);
+        alert(`✅ ${response.data.message}\n🔧 Бот: @${response.data.bot_info?.username || 'неизвестно'}\n\nВ целях безопасности токен сохранен локально (только для разработки). Для продакшена используйте переменные окружения.`);
       } else {
         throw new Error(response.data.message || "Неизвестная ошибка");
       }
@@ -296,7 +330,35 @@ function BotList() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1 style={{ textAlign: "center" }}>Конструктор Telegram ботов</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h1 style={{ textAlign: "center", margin: 0 }}>Конструктор Telegram ботов</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          {user && (
+            <span style={{ fontWeight: "bold", color: "#333" }}>
+              {user.username}
+            </span>
+          )}
+          <button 
+            onClick={() => {
+              // Clear user data from localStorage
+              localStorage.removeItem('user');
+              // Redirect to login page
+              navigate('/login');
+            }}
+            style={{ 
+              padding: "8px 16px", 
+              backgroundColor: "#dc3545", 
+              color: "white", 
+              border: "none", 
+              borderRadius: "4px", 
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Выйти
+          </button>
+        </div>
+      </div>
 
       {/* Адаптивная сетка для форм */}
       <div style={{ 

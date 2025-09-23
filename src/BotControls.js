@@ -74,7 +74,7 @@ function BotControls({ botId, saveScenario, runBot, deleteSelectedNode, navigate
         </button>
         
         <button
-          onClick={() => runBot("8495785437:AAFR_fwx0AlVTcVanFMwZ7Uf5Z4t3Sk-YdA")}
+          onClick={runBot}
           style={{ 
             padding: "8px 12px", 
             background: "#17a2b8", 

@@ -30,7 +30,10 @@
         "blockType": "inline_button",
         "buttonLayout": "row",
         "buttonsPerRow": 2,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 1730.9490784584973,
@@ -76,7 +79,10 @@
         "blockType": "inline_button",
         "buttonLayout": "row",
         "buttonsPerRow": 4,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 1278.281300232876,
@@ -110,7 +116,10 @@
         "blockType": "button",
         "buttonLayout": "row",
         "buttonsPerRow": 4,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 912.699733101543,
@@ -134,11 +143,97 @@
         "blockType": "start",
         "buttonLayout": null,
         "buttonsPerRow": null,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 939.8244057800202,
         "y": -302.7745874524337
+      }
+    },
+    {
+      "id": "d24be47d-9b38-4c6a-8dbc-afc51eeb9d17",
+      "type": "message",
+      "data": {
+        "label": "123423133242",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
+      },
+      "position": {
+        "x": 627.7906296931634,
+        "y": 529.6808443600643
+      }
+    },
+    {
+      "id": "2e393a7c-d275-4eb7-a0c4-bb50151d0bc3",
+      "type": "file",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "file",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
+      },
+      "position": {
+        "x": 1206.4030025399018,
+        "y": 497.4568015807265
+      }
+    },
+    {
+      "id": "fead7f6e-2b9b-434f-b5a2-178721f6b539",
+      "type": "keyword_processor",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "keyword_processor",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": [
+          "Капучино"
+        ],
+        "caseSensitive": false,
+        "matchMode": "partial"
+      },
+      "position": {
+        "x": 542.9166288778399,
+        "y": 107.62991897922097
       }
     }
   ],
@@ -160,6 +255,24 @@
       "source": "2a6553a6-1eef-41f9-9f7b-887288c11691",
       "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
       "sourceHandle": "6"
+    },
+    {
+      "id": "reactflow__edge-2a6553a6-1eef-41f9-9f7b-887288c116910-2e393a7c-d275-4eb7-a0c4-bb50151d0bc3",
+      "source": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "target": "2e393a7c-d275-4eb7-a0c4-bb50151d0bc3",
+      "sourceHandle": "0"
+    },
+    {
+      "id": "reactflow__edge-3cb9f441-735a-4375-8d24-4c1bf3ddb371main-fead7f6e-2b9b-434f-b5a2-178721f6b539",
+      "source": "3cb9f441-735a-4375-8d24-4c1bf3ddb371",
+      "target": "fead7f6e-2b9b-434f-b5a2-178721f6b539",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "reactflow__edge-fead7f6e-2b9b-434f-b5a2-178721f6b539main-2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "source": "fead7f6e-2b9b-434f-b5a2-178721f6b539",
+      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "sourceHandle": "main"
     }
   ]
 }

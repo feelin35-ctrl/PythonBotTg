@@ -1089,6 +1089,107 @@ export const EditableNode = ({ id, data, selected, onDelete }) => {
             </div>
           </>
         );
+      case "keyword_processor":
+        return (
+          <>
+            <NodeHeader>
+              <span>{nodeLabels.keyword_processor?.toUpperCase() || "KEYWORD PROCESSOR"}</span>
+              <NodeType>keyword_processor</NodeType>
+            </NodeHeader>
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Ключевые слова (по одному на строку):
+              </label>
+              <textarea
+                value={(data.keywords || []).join('\n')}
+                onChange={(e) => {
+                  const keywords = e.target.value.split('\n').filter(k => k.trim() !== '');
+                  if (data.onChange) {
+                    data.onChange(id, { keywords });
+                  }
+                }}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  minHeight: "60px",
+                  resize: "vertical",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+                placeholder="Введите ключевые слова, по одному на строку"
+              />
+            </div>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              marginBottom: "8px",
+              fontSize: "11px",
+              color: "#666"
+            }}>
+              <input
+                type="checkbox"
+                id={`caseSensitive-${id}`}
+                checked={data.caseSensitive || false}
+                onChange={(e) => {
+                  if (data.onChange) {
+                    data.onChange(id, { caseSensitive: e.target.checked });
+                  }
+                }}
+                className="nodrag"
+                style={{
+                  marginRight: "5px",
+                  cursor: "pointer"
+                }}
+              />
+              <label
+                htmlFor={`caseSensitive-${id}`}
+                className="nodrag"
+                style={{
+                  cursor: "pointer",
+                  userSelect: "none"
+                }}
+              >
+                Чувствительность к регистру
+              </label>
+            </div>
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Режим сопоставления:
+              </label>
+              <select
+                value={data.matchMode || "exact"}
+                onChange={(e) => {
+                  if (data.onChange) {
+                    data.onChange(id, { matchMode: e.target.value });
+                  }
+                }}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  border: "1px solid #ccc",
+                  padding: "4px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              >
+                <option value="exact">Точное совпадение</option>
+                <option value="partial">Частичное совпадение</option>
+              </select>
+            </div>
+          </>
+        );
       case "start":
       case "end":
       default:

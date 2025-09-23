@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "id": "1",
+      "type": "start",
+      "data": {
+        "label": "Добро пожаловать! Бот работает.",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "2",
+      "type": "message",
+      "data": {
+        "label": "Это тестовое сообщение от вашего бота!",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null
+      },
+      "position": {
+        "x": 250,
+        "y": 200
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": null,
+      "source": "1",
+      "target": "2",
+      "sourceHandle": null
+    }
+  ]
+}

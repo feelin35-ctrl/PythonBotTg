@@ -27,6 +27,8 @@ class BlockRegistry:
             from blocks.auto_update_block import AutoUpdateBlock
             from blocks.nlp_response_block import NLPResponseBlock
             from blocks.delay_block import DelayBlock
+            from blocks.keyword_processor_block import KeywordProcessorBlock
+            # Удалены блоки contextual_nlp_block и advanced_contextual_nlp_block
 
             core_blocks = [
                 MessageBlock,
@@ -40,7 +42,9 @@ class BlockRegistry:
                 FileBlock,
                 AutoUpdateBlock,
                 NLPResponseBlock,
-                DelayBlock
+                DelayBlock,
+                KeywordProcessorBlock
+                # Удалены блоки ContextualNLPBlock и AdvancedContextualNLPBlock
             ]
 
             for block_class in core_blocks:

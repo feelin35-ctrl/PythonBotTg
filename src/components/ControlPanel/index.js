@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { controlPanelStyles, mobileControlPanelStyles } from './styles';
 
 const ControlPanel = ({
@@ -27,16 +27,91 @@ const ControlPanel = ({
   const [showStats, setShowStats] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const tokenButtonRef = useRef(null);
+  const botNameButtonRef = useRef(null);
+  const statsButtonRef = useRef(null);
+  const tokenPopupRef = useRef(null);
+  const botNamePopupRef = useRef(null);
+  const statsPopupRef = useRef(null);
 
+  const [tokenPopupVisible, setTokenPopupVisible] = useState(false);
+  const [botNamePopupVisible, setBotNamePopupVisible] = useState(false);
+  const [statsPopupVisible, setStatsPopupVisible] = useState(false);
+
+  // Удаляем эффекты позиционирования, которые вызывали перемещение попапов после появления
+  // Эти эффекты были здесь:
+  // useEffect для позиционирования попапа токена
+  // useEffect для позиционирования попапа имени бота
+  // useEffect для позиционирования попапа статистики
+
+  // Оставляем только эффект для обработки изменения размера окна
   // Отслеживаем изменение размера экрана
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
+      // Перепозиционируем попапы при изменении размера окна
+      if (showTokenInput && tokenPopupVisible && tokenPopupRef.current) {
+        positionPopup(tokenButtonRef, tokenPopupRef);
+      }
+      if (showBotNameInput && botNamePopupVisible && botNamePopupRef.current) {
+        positionPopup(botNameButtonRef, botNamePopupRef);
+      }
+      if (showStats && statsPopupVisible && statsPopupRef.current) {
+        positionPopup(statsButtonRef, statsPopupRef);
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showStats, statsPopupVisible]);
+
+  // Обработчик для закрытия попапов при клике вне их области
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Проверяем каждый попап отдельно
+      
+      // Токен попап
+      if (showTokenInput && tokenPopupVisible && tokenPopupRef.current) {
+        const isClickInsidePopup = tokenPopupRef.current.contains(event.target);
+        const isClickOnButton = tokenButtonRef.current && tokenButtonRef.current.contains(event.target);
+        
+        // Если клик был вне попапа и вне кнопки, закрываем попап
+        if (!isClickInsidePopup && !isClickOnButton) {
+          setShowTokenInput(false);
+          setTokenPopupVisible(false);
+        }
+      }
+      
+      // Попап имени бота
+      if (showBotNameInput && botNamePopupVisible && botNamePopupRef.current) {
+        const isClickInsidePopup = botNamePopupRef.current.contains(event.target);
+        const isClickOnButton = botNameButtonRef.current && botNameButtonRef.current.contains(event.target);
+        
+        // Если клик был вне попапа и вне кнопки, закрываем попап
+        if (!isClickInsidePopup && !isClickOnButton) {
+          setShowBotNameInput(false);
+          setBotNamePopupVisible(false);
+        }
+      }
+      
+      // Попап статистики
+      if (showStats && statsPopupVisible && statsPopupRef.current) {
+        const isClickInsidePopup = statsPopupRef.current.contains(event.target);
+        const isClickOnButton = statsButtonRef.current && statsButtonRef.current.contains(event.target);
+        
+        // Если клик был вне попапа и вне кнопки, закрываем попап
+        if (!isClickInsidePopup && !isClickOnButton) {
+          setShowStats(false);
+          setStatsPopupVisible(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showStats, statsPopupVisible]);
 
   // Используем разные стили для мобильных и десктопных устройств
   const styles = isMobile ? mobileControlPanelStyles : controlPanelStyles;
@@ -72,6 +147,56 @@ const ControlPanel = ({
       console.error('Error stopping bot:', error);
       alert('Ошибка при остановке бота');
     }
+  };
+
+  // Оставляем только базовую функцию позиционирования для обработки изменения размера окна
+  // Функция для позиционирования попапов по центру сверху экрана (для коррекции при изменении размера окна)
+  const positionPopup = (buttonRef, popupRef) => {
+    if (!popupRef.current) return;
+    
+    // Получаем реальные размеры попапа
+    const popupRect = popupRef.current.getBoundingClientRect();
+    
+    // Используем реальные размеры попапа, если они доступны
+    const popupWidth = popupRect.width > 0 ? popupRect.width : 200;
+    
+    // Минимальные отступы от краев экрана
+    const minOffset = 10;
+    
+    // Центрируем попап по горизонтали
+    let left = (window.innerWidth - popupWidth) / 2;
+    
+    // Убеждаемся, что попап не выходит за границы экрана
+    if (left < minOffset) {
+      left = minOffset;
+    }
+    
+    if (left + popupWidth > window.innerWidth - minOffset) {
+      left = window.innerWidth - popupWidth - minOffset;
+    }
+    
+    // Применяем позицию
+    popupRef.current.style.left = `${left}px`;
+    // Вертикальная позиция остается фиксированной
+    popupRef.current.style.top = '20px';
+  };
+
+  // Функция для показа попапа токена
+  const showTokenPopup = () => {
+    setShowTokenInput(true);
+    setTokenPopupVisible(true);
+  };
+
+  // Функция для показа попапа имени бота
+  const showBotNamePopup = () => {
+    setShowBotNameInput(true);
+    setBotNamePopupVisible(true);
+  };
+
+  // Функция для показа попапа статистики
+  const showStatsPopup = () => {
+    setShowStats(true);
+    setStatsPopupVisible(true);
   };
 
   return (
@@ -132,15 +257,49 @@ const ControlPanel = ({
 
       {/* Управление токеном */}
       <div style={{ position: "relative" }}>
-        <button onClick={() => setShowTokenInput(!showTokenInput)} style={{
-          ...styles.button,
-          ...styles.successButton
-        }} title="Управление токеном">
+        <button 
+          ref={tokenButtonRef}
+          onClick={() => {
+            if (showTokenInput) {
+              setShowTokenInput(false);
+              setTokenPopupVisible(false);
+            } else {
+              showTokenPopup();
+            }
+          }} 
+          style={{
+            ...styles.button,
+            ...styles.successButton
+          }} 
+          title="Управление токеном"
+        >
           🔑
         </button>
 
-        {showTokenInput && (
-          <div style={styles.dropdown}>
+        {showTokenInput && tokenPopupVisible && (
+          <div 
+            ref={tokenPopupRef} 
+            style={{
+              position: 'fixed',
+              background: 'white',
+              padding: '10px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+              zIndex: 10000,
+              minWidth: '150px',
+              fontSize: isMobile ? '10px' : '12px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              opacity: tokenPopupVisible ? 1 : 0,
+              transform: tokenPopupVisible ? 'scale(1)' : 'scale(0.95)',
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+              // Позиционируем попап по центру сверху сразу при рендере
+              left: '50%',
+              top: '20px',
+              transformOrigin: 'top center',
+              marginLeft: '-100px' // Половина ширины попапа (примерно)
+            }}
+          >
             <input
               type="password"
               value={botToken}
@@ -155,7 +314,11 @@ const ControlPanel = ({
                 fontSize: isMobile ? "10px" : "12px"
               }}
             />
-            <button onClick={onSaveToken} style={{
+            <button onClick={() => {
+              onSaveToken();
+              setShowTokenInput(false);
+              setTokenPopupVisible(false);
+            }} style={{
               ...styles.button,
               ...styles.successButton,
               width: "100%"
@@ -168,15 +331,49 @@ const ControlPanel = ({
 
       {/* Управление именем бота */}
       <div style={{ position: "relative" }}>
-        <button onClick={() => setShowBotNameInput(!showBotNameInput)} style={{
-          ...styles.button,
-          ...styles.infoButton
-        }} title="Управление именем бота">
+        <button 
+          ref={botNameButtonRef}
+          onClick={() => {
+            if (showBotNameInput) {
+              setShowBotNameInput(false);
+              setBotNamePopupVisible(false);
+            } else {
+              showBotNamePopup();
+            }
+          }} 
+          style={{
+            ...styles.button,
+            ...styles.infoButton
+          }} 
+          title="Управление именем бота"
+        >
           📝
         </button>
 
-        {showBotNameInput && (
-          <div style={styles.dropdown}>
+        {showBotNameInput && botNamePopupVisible && (
+          <div 
+            ref={botNamePopupRef} 
+            style={{
+              position: 'fixed',
+              background: 'white',
+              padding: '10px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+              zIndex: 10000,
+              minWidth: '150px',
+              fontSize: isMobile ? '10px' : '12px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              opacity: botNamePopupVisible ? 1 : 0,
+              transform: botNamePopupVisible ? 'scale(1)' : 'scale(0.95)',
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+              // Позиционируем попап по центру сверху сразу при рендере
+              left: '50%',
+              top: '20px',
+              transformOrigin: 'top center',
+              marginLeft: '-100px' // Половина ширины попапа (примерно)
+            }}
+          >
             <input
               type="text"
               value={botName}
@@ -191,7 +388,11 @@ const ControlPanel = ({
                 fontSize: isMobile ? "10px" : "12px"
               }}
             />
-            <button onClick={onSaveBotName} style={{
+            <button onClick={() => {
+              onSaveBotName();
+              setShowBotNameInput(false);
+              setBotNamePopupVisible(false);
+            }} style={{
               ...styles.button,
               ...styles.infoButton,
               width: "100%"
@@ -246,17 +447,51 @@ const ControlPanel = ({
 
       {/* Статистика */}
       <div style={{ position: "relative" }}>
-        <button onClick={() => setShowStats(!showStats)} style={{
-          ...styles.button,
-          background: "#f8f9fa",
-          color: "#6c757d",
-          border: "1px solid #dee2e6"
-        }} title="Статистика">
+        <button 
+          ref={statsButtonRef}
+          onClick={() => {
+            if (showStats) {
+              setShowStats(false);
+              setStatsPopupVisible(false);
+            } else {
+              showStatsPopup();
+            }
+          }} 
+          style={{
+            ...styles.button,
+            background: "#f8f9fa",
+            color: "#6c757d",
+            border: "1px solid #dee2e6"
+          }} 
+          title="Статистика"
+        >
           📊
         </button>
 
-        {showStats && (
-          <div style={styles.dropdown}>
+        {showStats && statsPopupVisible && (
+          <div 
+            ref={statsPopupRef} 
+            style={{
+              position: 'fixed',
+              background: 'white',
+              padding: '10px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+              zIndex: 10000,
+              minWidth: '150px',
+              fontSize: isMobile ? '10px' : '12px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              opacity: statsPopupVisible ? 1 : 0,
+              transform: statsPopupVisible ? 'scale(1)' : 'scale(0.95)',
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+              // Позиционируем попап по центру сверху сразу при рендере
+              left: '50%',
+              top: '20px',
+              transformOrigin: 'top center',
+              marginLeft: '-100px' // Половина ширины попапа (примерно)
+            }}
+          >
             <div>Блоки: {nodesCount}</div>
             <div>Связи: {edgesCount}</div>
             <div>Выбрано: {selectedCount}</div>

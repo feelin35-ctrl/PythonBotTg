@@ -2,7 +2,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
   // Определяем целевой URL для прокси
-  const target = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+  const target = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8003';
   
   app.use(
     '/api',

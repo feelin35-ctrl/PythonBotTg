@@ -15,7 +15,8 @@ export const controlPanelStyles = {
     fontSize: "14px",
     flexWrap: "wrap",
     maxWidth: "90vw",
-    overflowX: "auto"
+    // Убираем overflow-x, чтобы попапы могли выходить за границы панели
+    overflowX: "visible"
   },
   button: {
     padding: "6px 10px",
@@ -49,21 +50,8 @@ export const controlPanelStyles = {
   secondaryButton: {
     background: "#6c757d",
     color: "white"
-  },
-  dropdown: {
-    position: "absolute",
-    top: "100%",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: "white",
-    padding: "10px",
-    borderRadius: "4px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-    marginTop: "5px",
-    zIndex: 1001,
-    minWidth: "150px",
-    fontSize: "12px"
   }
+  // Удален dropdown стиль, так как теперь используется фиксированное позиционирование
 };
 
 // Адаптивные стили для мобильных устройств
@@ -85,7 +73,8 @@ export const mobileControlPanelStyles = {
     fontSize: "12px",
     flexWrap: "wrap",
     maxWidth: "calc(100vw - 20px)",
-    overflowX: "auto"
+    // Убираем overflow-x, чтобы попапы могли выходить за границы панели
+    overflowX: "visible"
   },
   button: {
     padding: "4px 8px",
@@ -95,19 +84,6 @@ export const mobileControlPanelStyles = {
     fontSize: "10px",
     transition: "all 0.2s ease",
     minWidth: "30px"
-  },
-  dropdown: {
-    position: "absolute",
-    top: "100%",
-    left: "0",
-    transform: "none",
-    background: "white",
-    padding: "8px",
-    borderRadius: "4px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-    marginTop: "5px",
-    zIndex: 1001,
-    minWidth: "120px",
-    fontSize: "10px"
   }
+  // Удален dropdown стиль, так как теперь используется фиксированное позиционирование
 };

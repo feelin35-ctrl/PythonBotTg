@@ -5,24 +5,50 @@ import BotList from "./BotList";
 import BotEditor from "./components/BotEditor";
 import { useResizeObserverErrorHandler } from "./hooks/useResizeObserverErrorHandler";
 
+// Import authentication components
+import Login from "./components/Auth/Login";
+import Register from "./components/Auth/Register";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import TestAuth from "./components/Auth/TestAuth";
+import TestUserContext from "./components/Auth/TestUserContext";
+import { AuthProvider } from "./components/Auth/AuthContext";
+
+// Import super admin components
+import SuperAdminLogin from "./components/admin/SuperAdminLogin";
+import SuperAdminLayout from "./components/admin/SuperAdminLayout";
+import SuperAdminDashboard from "./components/admin/SuperAdminDashboard";
+
 function App() {
   // Use improved ResizeObserver error handler
   useResizeObserverErrorHandler();
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<BotList />} />
-        <Route
-          path="/editor/:botId"
-          element={
-            <ReactFlowProvider>
-              <BotEditor />
-            </ReactFlowProvider>
-          }
-        />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/test-auth" element={<TestAuth />} />
+          <Route path="/test-user-context" element={<TestUserContext />} />
+          
+          {/* Super Admin Routes */}
+          <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+          <Route path="/superadmin/*" element={<SuperAdminLayout />} />
+          
+          <Route path="/" element={<ProtectedRoute><BotList /></ProtectedRoute>} />
+          <Route
+            path="/editor/:botId"
+            element={
+              <ProtectedRoute>
+                <ReactFlowProvider>
+                  <BotEditor />
+                </ReactFlowProvider>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

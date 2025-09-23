@@ -9,6 +9,7 @@ import MenuNode from './MenuNode';
 import FileNode from './FileNode';
 import NLPResponseNode from './NLPResponseNode';
 import DelayNode from './DelayNode';
+import KeywordProcessorNode from './KeywordProcessorNode';
 import { ContextMenu } from './ContextMenu';
 import { EditableNode } from './EditableNode';
 
@@ -24,6 +25,7 @@ export const nodeTypes = {
   file: FileNode,
   nlp_response: NLPResponseNode,
   delay: DelayNode,
+  keyword_processor: KeywordProcessorNode,
 };
 
 // Добавляем отладочный вывод
