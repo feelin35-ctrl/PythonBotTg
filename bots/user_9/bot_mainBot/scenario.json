@@ -164,7 +164,7 @@
         "condition": null,
         "variableName": null,
         "method": null,
-        "payload": null,
+        "payload": "123423133242",
         "target_node": null,
         "onChange": null,
         "blockType": "message",
@@ -261,12 +261,6 @@
       "source": "2a6553a6-1eef-41f9-9f7b-887288c11691",
       "target": "2e393a7c-d275-4eb7-a0c4-bb50151d0bc3",
       "sourceHandle": "0"
-    },
-    {
-      "id": "reactflow__edge-3cb9f441-735a-4375-8d24-4c1bf3ddb371main-fead7f6e-2b9b-434f-b5a2-178721f6b539",
-      "source": "3cb9f441-735a-4375-8d24-4c1bf3ddb371",
-      "target": "fead7f6e-2b9b-434f-b5a2-178721f6b539",
-      "sourceHandle": "main"
     },
     {
       "id": "reactflow__edge-fead7f6e-2b9b-434f-b5a2-178721f6b539main-2a6553a6-1eef-41f9-9f7b-887288c11691",

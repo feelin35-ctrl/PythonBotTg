@@ -1,13 +1,38 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+"""
+Исправленная версия main.py с правильными обработчиками DELETE и OPTIONS
+"""
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-import os, json, time, zipfile, tempfile, shutil
-from fastapi.middleware.cors import CORSMiddleware
+import os, json, time, zipfile, tempfile, shutil, datetime
 import telebot
 import threading
 import uvicorn
 import logging
+
+import logging
+import logging
+
+# Импорт вспомогательных функций для новой структуры папок
+from bot_structure_utils import (
+    get_bot_directory,
+    get_bot_scenario_file,
+    get_bot_config_file,
+    get_bot_media_directory,
+    get_bot_logs_directory,
+    get_bot_backups_directory,
+    get_bot_temp_directory,
+    create_bot_config as create_user_bot_config,
+    update_bot_config,
+    save_bot_scenario as save_user_bot_scenario,
+    load_bot_scenario as load_user_bot_scenario,
+    list_user_bots,
+    bot_directory_exists,
+    initialize_bot_structure
+)
+
 import requests
 import hashlib
 import hmac
@@ -57,14 +82,17 @@ additional_origins = os.getenv("ALLOWED_ORIGINS", "")
 if additional_origins:
     allowed_origins.extend(additional_origins.split(","))
 
+from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=None,
+    expose_headers=[],
+    max_age=600,
 )
-
 
 # ========== МОДЕЛИ ==========
 class ButtonData(BaseModel):
@@ -76,21 +104,20 @@ class RegisterUserRequest(BaseModel):
     email: str
     password: str
 
-
 class LoginUserRequest(BaseModel):
     username: str
     password: str
-
 
 class SaveTokenRequest(BaseModel):
     user_id: str
     bot_id: str
     token: str
 
-
 class UserTokenResponse(BaseModel):
     token: str
 
+class BotDataRequest(BaseModel):
+    token: Optional[str] = None
 
 class NodeData(BaseModel):
     label: Optional[str] = None
@@ -112,13 +139,11 @@ class NodeData(BaseModel):
     caseSensitive: Optional[bool] = None
     matchMode: Optional[str] = None
 
-
 class Node(BaseModel):
     id: str
     type: Optional[str] = None
     data: NodeData
     position: Dict
-
 
 class Edge(BaseModel):
     id: Optional[str] = None
@@ -126,21 +151,17 @@ class Edge(BaseModel):
     target: str
     sourceHandle: Optional[str] = None
 
-
 class Scenario(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
-
 
 class BotImportData(BaseModel):
     bot_id: str
     scenario: Scenario
     token: str
 
-
 class TokenData(BaseModel):
     token: str
-
 
 class AuthData(BaseModel):
     password: str
@@ -166,74 +187,96 @@ bot_stop_flags = {}
 bot_restart_counter = {}  # Счетчик перезапусков для уникальных имен потоков
 chat_history = {}  # Храним историю переходов для каждого чата
 
-
 def load_tokens():
-    # Проверяем, есть ли переменная окружения BOT_TOKEN
-    env_token = os.getenv("BOT_TOKEN")
-    if env_token:
-        # Если есть переменная окружения, используем её
-        logger.info("Используется токен из переменной окружения BOT_TOKEN")
-        return {"env_bot": env_token}
-    
-    # Возвращаем пустой словарь, так как файл токенов больше не используется
+    # Всегда возвращаем пустой словарь, так как токены теперь хранятся в базе данных
+    # Эта функция сохраняется для обратной совместимости, но не используется для хранения токенов
     return {}
-
 
 def save_tokens(tokens):
     # Не сохраняем токены в файл, так как файл токенов больше не используется
+    # Все токены теперь хранятся в базе данных
     pass
 
+    pass
 
-BOTS_DIR = "bots"
-if not os.path.exists(BOTS_DIR):
-    os.makedirs(BOTS_DIR)
+def bot_file(bot_id: str, user_id: Optional[str] = None) -> str:
+    """Возвращает путь к файлу бота. Если указан user_id, создает подпапку для пользователя."""
+    print(f"bot_file вызвана с bot_id={bot_id}, user_id={user_id}")
+    
+    if user_id:
+        # Используем новую структуру папок через bot_structure_utils
+        from bot_structure_utils import get_bot_scenario_file
+        path = get_bot_scenario_file(user_id, bot_id)
+        print(f"Путь к файлу бота с user_id: {path}")
+        return path
+    else:
+        # Используем общую папку для ботов (обратная совместимость)
+        path = os.path.join(BOTS_DIR, f"bot_{bot_id}.json")
+        print(f"Путь к файлу бота без user_id: {path}")
+        return path
 
-
-def bot_file(bot_id: str) -> str:
-    return os.path.join(BOTS_DIR, f"bot_{bot_id}.json")
-
-
-def load_scenario(bot_id: str) -> Scenario:
-    file_path = bot_file(bot_id)
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return Scenario(**data)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки сценария {bot_id}: {e}")
-            return Scenario(nodes=[], edges=[])
+def load_scenario(bot_id: str, user_id: Optional[str] = None) -> Scenario:
+    # Получаем владельца бота для определения правильного пути
+    if not user_id:
+        from core.models import UserManager
+        user_manager = UserManager()
+        user_id = user_manager.get_bot_owner(bot_id)
+    
+    # Используем только новый путь с user_id
+    if user_id:
+        file_path = bot_file(bot_id, user_id)
+        print(f"Trying to load scenario from user-specific path: {file_path}")
+        print(f"File exists: {os.path.exists(file_path)}")
+        
+        if os.path.exists(file_path):
+            try:
+                print("Opening scenario file...")
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    print(f"Data from file: {data}")
+                    print(f"Number of nodes in data: {len(data.get('nodes', []))}")
+                    return Scenario(**data)
+            except Exception as e:
+                logger.error(f"Error loading scenario {bot_id} from user path: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f"Scenario file not found: {file_path}")
+    else:
+        print(f"User ID not found for bot {bot_id}")
+    
+    # Return empty scenario if nothing found
     return Scenario(nodes=[], edges=[])
 
-
-def save_scenario(bot_id: str, scenario: Scenario):
+def save_scenario(bot_id: str, scenario: Scenario, user_id: Optional[str] = None):
+    # Если user_id не предоставлен, пытаемся получить его из базы данных
+    if not user_id:
+        try:
+            from core.models import UserManager
+            user_manager = UserManager()
+            user_id = user_manager.get_bot_owner(bot_id)
+        except Exception as e:
+            logger.error(f"Ошибка получения владельца бота {bot_id}: {e}")
+    
+    # Если не можем определить владельца, возвращаем ошибку
+    if not user_id:
+        logger.error(f"Не удалось определить владельца бота {bot_id} для сохранения сценария")
+        raise Exception(f"Не удалось определить владельца бота {bot_id}")
+    
     try:
-        with open(bot_file(bot_id), "w", encoding="utf-8") as f:
+        file_path = bot_file(bot_id, user_id)
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(scenario.dict(), f, ensure_ascii=False, indent=2)
-        logger.info(f"Сценарий сохранен для бота {bot_id}")
+        logger.info(f"Сценарий сохранен для бота {bot_id} (пользователь: {user_id})")
     except Exception as e:
         logger.error(f"Ошибка сохранения сценария {bot_id}: {e}")
-
+        raise
 
 # ========== API ЭНДПОИНТЫ ==========
 @app.get("/")
 def read_root():
     return {"message": "Telegram Bot Constructor API"}
 
-
-@app.get("/api/available_blocks/")
-def get_available_blocks():
-    """Получить список доступных блоков"""
-    try:
-        from core.block_registry import block_registry
-        blocks = block_registry.get_available_blocks()
-        return {"blocks": blocks}
-    except Exception as e:
-        logger.error(f"Ошибка получения списка блоков: {e}")
-        return {"blocks": []}
-
-
-# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 def validate_telegram_token(token: str) -> bool:
     """Проверяет валидность токена Telegram"""
     if not token:
@@ -249,19 +292,29 @@ def validate_telegram_token(token: str) -> bool:
         return False
     return True
 
-
 def check_token_sync(token: str) -> bool:
     """Синхронная проверка токена Telegram"""
     try:
-        if not validate_telegram_token(token):
+        print(f"Проверка токена: {'*' * len(token)}")  # Скрыли отображение токена
+        
+        # Проверяем формат токена
+        is_valid_format = validate_telegram_token(token)
+        print(f"Формат токена действителен: {is_valid_format}")
+        
+        if not is_valid_format:
+            print(f"Токен не прошел проверку формата")
             return False
 
+        print("Попытка подключения к Telegram API с этим токеном...")
         test_bot = telebot.TeleBot(token)
-        test_bot.get_me()
+        bot_info = test_bot.get_me()
+        print(f"Успешное подключение! Информация о боте: {bot_info}")
         return True
-    except Exception:
+    except Exception as e:
+        print(f"Ошибка при проверке токена: {e}")
+        import traceback
+        traceback.print_exc()
         return False
-
 
 def check_telegram_connection():
     """Проверяет возможность подключения к Telegram API"""
@@ -270,7 +323,6 @@ def check_telegram_connection():
         return response.status_code == 200
     except:
         return False
-
 
 def add_to_chat_history(chat_id: int, node_id: str):
     """Добавляет узел в историю чата"""
@@ -286,7 +338,6 @@ def add_to_chat_history(chat_id: int, node_id: str):
         chat_history[chat_id].append(node_id)
         logger.info(f"🗺️ Добавлено в историю {chat_id}: {node_id}")
 
-
 def get_previous_node(chat_id: int) -> Optional[str]:
     """Возвращает предыдущий узел из истории"""
     if chat_id not in chat_history or len(chat_history[chat_id]) < 2:
@@ -298,17 +349,15 @@ def get_previous_node(chat_id: int) -> Optional[str]:
     logger.info(f"↩️ Возврат к узлу {previous_node} для чата {chat_id}")
     return previous_node
 
-
 def clear_chat_history(chat_id: int):
     """Очищает историю чата"""
     if chat_id in chat_history:
         del chat_history[chat_id]
         logger.info(f"🧽 Очищена история чата {chat_id}")
 
-
 def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
     """Запускает телеграм бота в отдельном потоке"""
-    logger.info(f"🔄 Запуск бота {bot_id} с токеном: {token[:10]}...")
+    logger.info(f"🔄 Запуск бота {bot_id} с токеном: {'*' * 10}...")  # Скрыли отображение токена
 
     # Сбрасываем флаг остановки
     bot_stop_flags[bot_id] = False
@@ -399,7 +448,6 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                     if bot_stop_flags.get(bot_id, True):
                         logger.info(f"⏹️ Бот {bot_id} остановлен, игнорируем команду Назад")
                         return
-                        
                         
                     logger.info(f"↩️ Команда 'Назад' от {message.chat.id}")
                     
@@ -633,10 +681,144 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                 break
             logger.error(f"❌ Ошибка Telegram API: {e}")
             time.sleep(retry_delay)
-import uvicorn
-# ========== API ЭНДПОИНТЫ ==========
-@app.get("/api/available_blocks/")
 
+# ========== ПРАВИЛЬНЫЕ ОБРАБОТЧИКИ DELETE И OPTIONS ==========
+@app.options("/api/delete_bot/{bot_id}/")
+async def delete_bot_options(bot_id: str):
+    """Обработка OPTIONS запроса для удаления бота"""
+    response = JSONResponse({"status": "success"})
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Max-Age"] = "600"
+    return response
+
+@app.delete("/api/delete_bot/{bot_id}/")
+def delete_bot(bot_id: str, deleted_by_user_id: Optional[str] = None):
+    try:
+        print(f"=== DELETE BOT REQUEST ===")
+        print(f"bot_id: {bot_id}")
+        print(f"deleted_by_user_id: {deleted_by_user_id}")
+        
+        # Если указан deleted_by_user_id, проверяем, является ли пользователь суперадмином
+        is_super_admin = False
+        if deleted_by_user_id:
+            try:
+                from core.models import UserManager
+                user_manager = UserManager()
+                is_super_admin = user_manager.is_super_admin(deleted_by_user_id)
+                print(f"is_super_admin: {is_super_admin}")
+            except Exception as e:
+                logger.warning(f"Ошибка проверки роли пользователя {deleted_by_user_id}: {e}")
+        
+        # Получаем владельца бота для определения правильного пути
+        from core.models import UserManager
+        user_manager = UserManager()
+        owner_id = user_manager.get_bot_owner(bot_id)
+        print(f"owner_id: {owner_id}")
+        
+        # Если не можем определить владельца, возвращаем ошибку
+        if not owner_id:
+            logger.warning(f"Не удалось определить владельца бота {bot_id}")
+            response_data = {"status": "error", "message": f"Не удалось определить владельца бота {bot_id}"}
+            # Add CORS headers
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+        
+        # Если пользователь не является суперадмином, проверяем, что он владелец бота
+        if not is_super_admin and deleted_by_user_id != owner_id:
+            logger.warning(f"Пользователь {deleted_by_user_id} не имеет прав для удаления бота {bot_id}")
+            response_data = {"status": "error", "message": "У вас нет прав для удаления этого бота"}
+            # Add CORS headers
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+        
+        # Получаем путь к файлу бота с учетом владельца
+        file_path = bot_file(bot_id, owner_id)
+        print(f"Attempting to delete bot file: {file_path}")
+        print(f"File exists: {os.path.exists(file_path)}")
+        
+        if os.path.exists(file_path):
+            # Получаем директорию бота и удаляем всю директорию
+            bot_dir = os.path.dirname(file_path)
+            if os.path.exists(bot_dir):
+                import shutil
+                shutil.rmtree(bot_dir)
+                logger.info(f"Директория бота {bot_dir} успешно удалена")
+            else:
+                # Если директория не существует, удаляем только файл сценария
+                os.remove(file_path)
+            
+            # Удаляем токен из базы данных
+            try:
+                from core.models import UserManager
+                user_manager = UserManager()
+                deletion_result = user_manager.delete_user_token(owner_id, bot_id)
+                if deletion_result:
+                    logger.info(f"Токен для бота {bot_id} успешно удален из базы данных")
+                else:
+                    logger.warning(f"Токен для бота {bot_id} не был найден в базе данных")
+            except Exception as e:
+                logger.warning(f"Предупреждение: не удалось удалить токен для бота {bot_id} из базы данных: {e}")
+            
+            # Останавливаем бота если он запущен
+            if bot_id in running_bots:
+                bot_stop_flags[bot_id] = True
+                del running_bots[bot_id]
+
+            # Удаляем информацию о праве собственности на бота из базы данных
+            try:
+                logger.info(f"Попытка удаления информации о праве собственности на бота {bot_id}")
+                deletion_result = user_manager.delete_bot_ownership(bot_id)
+                if deletion_result:
+                    logger.info(f"Информация о праве собственности на бота {bot_id} успешно удалена из базы данных")
+                else:
+                    logger.warning(f"Информация о праве собственности на бота {bot_id} не была найдена в базе данных")
+            except Exception as e:
+                logger.error(f"Ошибка удаления информации о праве собственности на бота {bot_id}: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+            response_data = {"status": "success", "message": f"Бот {bot_id} успешно удален."}
+            # Add CORS headers
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+        else:
+            response_data = {"status": "success", "message": f"Бот {bot_id} не найден, возможно уже удален."}
+            # Add CORS headers
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+    except Exception as e:
+        logger.error(f"Ошибка удаления бота {bot_id}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        response_data = {"status": "error", "message": f"Ошибка удаления бота: {str(e)}"}
+        # Add CORS headers
+        response = JSONResponse(response_data)
+        response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+# ========== ОСТАЛЬНЫЕ ЭНДПОИНТЫ ==========
 @app.post("/api/import_bot/")
 def import_bot(import_data: BotImportData, user_id: Optional[str] = None):
     """Импортирует бота из переданных данных"""
@@ -681,11 +863,18 @@ def import_bot(import_data: BotImportData, user_id: Optional[str] = None):
         logger.info(f"💾 Импортируем сценарий для бота {bot_id}")
         save_scenario(bot_id, scenario)
         
-        # Сохраняем токен
+        # Сохраняем токен в базе данных
         logger.info(f"🔑 Импортируем токен для бота {bot_id}")
-        tokens = load_tokens()
-        tokens[bot_id] = token
-        save_tokens(tokens)
+        if user_id:
+            try:
+                from core.models import UserManager
+                user_manager = UserManager()
+                user_manager.save_user_token(user_id, bot_id, token)
+                logger.info(f"✅ Токен для бота {bot_id} успешно сохранен в базе данных")
+            except Exception as e:
+                logger.error(f"❌ Ошибка сохранения токена для бота {bot_id}: {e}")
+        else:
+            logger.warning(f"⚠️ Не удалось сохранить токен для бота {bot_id} - не указан user_id")
         
         # Register bot ownership if user_id is provided
         if user_id:
@@ -709,7 +898,6 @@ def import_bot(import_data: BotImportData, user_id: Optional[str] = None):
     except Exception as e:
         logger.error(f"❌ Ошибка импорта бота: {e}")
         return {"status": "error", "message": f"Ошибка импорта: {str(e)}"}
-
 
 @app.post("/api/export_bot_zip/{bot_id}/")
 def export_bot_zip(bot_id: str):
@@ -770,7 +958,6 @@ def export_bot_zip(bot_id: str):
         logger.error(f"❌ Ошибка экспорта ZIP-архива бота {bot_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка создания архива: {str(e)}")
 
-
 def copy_core_files(bot_dir: str):
     """Копирует необходимые кодовые файлы в папку бота"""
     # Копируем модули blocks
@@ -795,7 +982,6 @@ def copy_core_files(bot_dir: str):
     with open(os.path.join(core_dst, "__init__.py"), "w") as f:
         f.write("")
 
-
 def create_bot_config(bot_dir: str, bot_id: str, scenario: Scenario, token: str):
     """Создает конфигурационные файлы бота"""
     # Создаем папку bots если её нет
@@ -811,7 +997,6 @@ def create_bot_config(bot_dir: str, bot_id: str, scenario: Scenario, token: str)
     env_path = os.path.join(bot_dir, ".env")
     with open(env_path, "w", encoding="utf-8") as f:
         f.write(f"BOT_TOKEN={token}\n")
-
 
 def create_deployment_main(bot_dir: str, bot_id: str):
     """Создает main.py для развертывания бота на хостинге"""
@@ -1022,7 +1207,6 @@ if __name__ == "__main__":
     with open(main_path, "w", encoding="utf-8") as f:
         f.write(main_content)
 
-
 def create_requirements_txt(bot_dir: str):
     """Создает файл зависимостей"""
     requirements_content = '''pyTelegramBotAPI>=4.0.0
@@ -1032,7 +1216,6 @@ requests>=2.25.0
     req_path = os.path.join(bot_dir, "requirements.txt")
     with open(req_path, "w", encoding="utf-8") as f:
         f.write(requirements_content)
-
 
 def create_readme(bot_dir: str, bot_id: str):
     """Создает README с инструкциями по развертыванию"""
@@ -1109,523 +1292,48 @@ def create_readme(bot_dir: str, bot_id: str):
 Бот использует стандартный long polling, поэтому подходит для большинства хостингов.
 
 ## Поддержка
-Если у вас возникли проблемы с развертыванием, обратитесь к документации конструкторуктора ботов.
+Если у вас возникли проблемы с развертыванием, обратитесь к документации конструктору ботов.
 '''
     
     readme_path = os.path.join(bot_dir, "README.md")
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme_content)
-from typing import Optional
-
-@app.get("/api/get_bots/")
-def get_bots_endpoint(user_id: Optional[str] = None):
-    print(f"API call to get_bots_endpoint: user_id={user_id}")
-    
-    # Проверяем, что user_id не равен "undefined" или None
-    if user_id == "undefined" or not user_id:
-        print("No valid user_id provided, returning empty list")
-        bots = []
-    else:
-        # If user_id is provided, check user role
-        from core.models import UserManager
-        from core.db import db
-        
-        # Check user role
-        user_role = None
-        try:
-            query = "SELECT role FROM users WHERE id = %s"
-            result = db.execute_query(query, (user_id,))
-            if result and len(result) > 0:
-                user_role = result[0][0]
-                print(f"User {user_id} has role: {user_role}")
-        except Exception as e:
-            print(f"Error checking user role: {e}")
-        
-        if user_role == "super_admin":
-            # Super admin sees all bots
-            try:
-                query = "SELECT bot_id FROM bot_owners"
-                result = db.execute_query(query, ())
-                bots = [row[0] for row in result] if result else []
-                print(f"Super admin sees all bots: {bots}")
-            except Exception as e:
-                print(f"Error getting all bots for super admin: {e}")
-                bots = []
-        else:
-            # Regular user (admin) sees only their bots
-            user_manager = UserManager()
-            user_bots = user_manager.get_user_bots(user_id)
-            bots = user_bots
-    
-    logger.info(f"Возвращаем список ботов: {bots}")
-    # Явно указываем кодировку в заголовках ответа
-    import json
-    response_data = {"bots": bots}
-    response_json = json.dumps(response_data, ensure_ascii=False).encode('utf-8')
-    from fastapi.responses import Response
-    return Response(content=response_json, media_type="application/json; charset=utf-8")
-import os
-from typing import Optional
-
-from fastapi import FastAPI, HTTPException
-from loguru import logger
-
-# Scenario and utility functions are defined locally in this file
-# bot_file function is defined locally in this file
-
-
-@app.get("/api/get_all_users/")
-def get_all_users_endpoint(user_id: str):
-    """Получает всех пользователей системы (только для super_admin)"""
-    print(f"API call to get_all_users_endpoint: user_id={user_id}")
-    
-    from core.models import UserManager
-    from core.db import db
-    
-    # Check if user is super_admin
-    query = "SELECT role FROM users WHERE id = %s"
-    result = db.execute_query(query, (user_id,))
-    
-    if not result or len(result) == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    user_role = result[0][0]
-    if user_role != "super_admin":
-        raise HTTPException(status_code=403, detail="Access denied. Super admin required.")
-    
-    # Get all users
-    user_manager = UserManager()
-    users = user_manager.get_all_users()
-    
-    logger.info(f"Returning list of all users: {len(users)} users")
-    return {"users": users}
-
-
-@app.post("/api/update_user_role/")
-def update_user_role_endpoint(user_id: str, new_role: str, updated_by_user_id: str):
-    """Обновляет роль пользователя (только для super_admin)"""
-    print(f"API call to update_user_role_endpoint: user_id={user_id}, new_role={new_role}, updated_by={updated_by_user_id}")
-    
-    from core.models import UserManager
-    
-    # Update user role
-    user_manager = UserManager()
-    success = user_manager.update_user_role(user_id, new_role, updated_by_user_id)
-    
-    if success:
-        logger.info(f"User {user_id} role updated to {new_role} by {updated_by_user_id}")
-        return {"status": "success", "message": f"User role updated to {new_role}"}
-    else:
-        raise HTTPException(status_code=400, detail="Failed to update user role")
-
-
-@app.post("/api/create_bot/")
-def create_bot_endpoint(bot_id: str, user_id: Optional[str] = None):
-    print(f"API call to create_bot_endpoint: bot_id={bot_id}, user_id={user_id}")
-    
-    # Проверяем, что user_id не равен "undefined" или None
-    if user_id == "undefined" or not user_id:
-        print("No valid user_id provided, skipping ownership registration")
-        user_id = None
-    else:
-        # Проверяем, существует ли пользователь в базе данных
-        try:
-            from core.models import UserManager
-            from core.db import db
-            # Попробуем получить информацию о пользователе
-            query = "SELECT id FROM users WHERE id = %s"
-            result = db.execute_query(query, (user_id,))
-            if not result or len(result) == 0:
-                print(f"User with id {user_id} not found in database, skipping ownership registration")
-                user_id = None
-        except Exception as e:
-            print(f"Error checking user existence: {e}")
-            user_id = None
-    
-    logger.info(f"Creating bot {bot_id} for user_id {user_id}")
-    path = bot_file(bot_id)
-    if os.path.exists(path):
-        logger.warning(f"Bot {bot_id} already exists")
-        return {"status": "error", "message": "Бот уже существует"}
-    
-    logger.info(f"Saving scenario for bot {bot_id}")
-    save_scenario(bot_id, Scenario(nodes=[], edges=[]))
-    
-    # Register bot ownership if user_id is provided and valid
-    if user_id:
-        try:
-            logger.info(f"Registering bot ownership for user {user_id} and bot {bot_id}")
-            from core.models import UserManager
-            user_manager = UserManager()
-            success = user_manager.register_bot_ownership(user_id, bot_id)
-            if success:
-                logger.info(f"Successfully registered bot ownership for user {user_id} and bot {bot_id}")
-            else:
-                logger.error(f"Failed to register bot ownership for user {user_id} and bot {bot_id}")
-        except Exception as e:
-            logger.error(f"Ошибка регистрации права собственности на бота {bot_id}: {e}")
-    
-    logger.info(f"Bot {bot_id} created successfully")
-    return {"status": "success"}
-
-
-@app.get("/api/get_scenario/{bot_id}/")
-def get_scenario(bot_id: str):
-    scenario = load_scenario(bot_id)
-    # Явно указываем кодировку UTF-8 в заголовках ответа
-    return scenario
-
-
-@app.post("/api/save_scenario/{bot_id}/")
-def save_bot_scenario(bot_id: str, scenario: Scenario):
-    logger.info(f"💾 Сохраняем сценарий для бота {bot_id}")
-    save_scenario(bot_id, scenario)
-    return {"status": "success"}
-
-
-@app.delete("/api/delete_bot/{bot_id}/")
-def delete_bot(bot_id: str):
-    try:
-        file_path = bot_file(bot_id)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            
-            # Пытаемся удалить токен, но не прерываем процесс удаления бота при ошибке
-            try:
-                tokens = load_tokens()
-                if bot_id in tokens:
-                    del tokens[bot_id]
-                    save_tokens(tokens)
-            except Exception as e:
-                logger.warning(f"Предупреждение: не удалось удалить токен для бота {bot_id}: {e}")
-            
-            # Останавливаем бота если он запущен
-            if bot_id in running_bots:
-                bot_stop_flags[bot_id] = True
-                del running_bots[bot_id]
-
-            # Удаляем информацию о праве собственности на бота из базы данных
-            try:
-                from core.models import UserManager
-                user_manager = UserManager()
-                logger.info(f"Попытка удаления информации о праве собственности на бота {bot_id}")
-                deletion_result = user_manager.delete_bot_ownership(bot_id)
-                if deletion_result:
-                    logger.info(f"Информация о праве собственности на бота {bot_id} успешно удалена из базы данных")
-                else:
-                    logger.warning(f"Информация о праве собственности на бота {bot_id} не была найдена в базе данных")
-            except Exception as e:
-                logger.error(f"Ошибка удаления информации о праве собственности на бота {bot_id}: {e}")
-                import traceback
-                logger.error(f"Traceback: {traceback.format_exc()}")
-
-            return {"status": "success", "message": f"Бот {bot_id} успешно удален."}
-        else:
-            return {"status": "success", "message": f"Бот {bot_id} не найден, возможно уже удален."}
-    except Exception as e:
-        logger.error(f"Ошибка удаления бота {bot_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка удаления бота: {str(e)}")
-
-
-@app.get("/api/get_token/{bot_id}/")
-def get_token(bot_id: str):
-    """Получение токена бота (только для администратора или внутреннего использования)"""
-    # В целях безопасности не возвращаем токен напрямую через API
-    # Вместо этого проверяем его наличие
-    token = get_bot_token(bot_id)
-    if token:
-        return {"status": "success", "message": "Token exists"}
-    else:
-        raise HTTPException(status_code=404, detail="Token not found")
-
-
-@app.post("/api/save_token/{bot_id}/")
-def save_token(bot_id: str, token_data: TokenData, auth_data: Optional[AuthData] = None):
-    """Сохранение токена бота с проверкой аутентификации"""
-    # В продакшене требуем аутентификацию администратора
-    if os.getenv("ENVIRONMENT") == "production":
-        if not auth_data or not authenticate_admin(auth_data.password):
-            raise HTTPException(status_code=401, detail="Требуется аутентификация администратора")
-    
-    try:
-        # Для продакшена сохраняем токен в переменных окружения (временно в памяти)
-        # В реальном приложении это должно быть реализовано через систему управления секретами
-        if os.getenv("ENVIRONMENT") == "production":
-            # В продакшене мы не сохраняем токены в файлах, но можем временно хранить в памяти
-            logger.warning(f"В продакшене токен для {bot_id} будет храниться только в памяти")
-            # Здесь можно добавить интеграцию с системой управления секретами (Vault, AWS Secrets Manager, etc.)
-        
-        # Для разработки сохраняем в базу данных
-        from core.models import UserManager
-        user_manager = UserManager()
-        # Здесь нужно определить, как сохранять токен без привязки к конкретному пользователю
-        # Пока просто возвращаем успех
-        return {"status": "success", "message": "Токен успешно сохранен"}
-        
-        return {"status": "success", "message": "Токен успешно сохранен"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка сохранения токена: {str(e)}")
-
-
-@app.delete("/api/delete_token/{bot_id}/")
-def delete_token(bot_id: str, auth_data: Optional[AuthData] = None):
-    """Удаление токена бота с проверкой аутентификации"""
-    # В продакшене требуем аутентификацию администратора
-    if os.getenv("ENVIRONMENT") == "production":
-        if not auth_data or not authenticate_admin(auth_data.password):
-            raise HTTPException(status_code=401, detail="Требуется аутентификация администратора")
-    
-    # В продакшене удаляем токен из памяти (если он там есть)
-    if os.getenv("ENVIRONMENT") == "production":
-        logger.warning(f"В продакшене токен для {bot_id} будет удален из памяти")
-        # Здесь можно добавить интеграцию с системой управления секретами
-    
-    try:
-        # В продакшене удаляем токен из базы данных
-        from core.models import UserManager
-        user_manager = UserManager()
-        # Здесь нужно определить, как удалять токен без привязки к конкретному пользователю
-        # Пока просто возвращаем успех
-        return {"status": "success", "message": "Токен успешно удален"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка удаления токена: {str(e)}")
-
-
-@app.post("/api/save_token/{bot_id}/")
-def save_bot_token(bot_id: str, token_data: Dict[str, str]):
-    tokens = load_tokens()
-    tokens[bot_id] = token_data.get("token", "")
-    save_tokens(tokens)
-    logger.info(f"Токен сохранен для бота {bot_id}")
-    return {"status": "success"}
-
 
 def get_bot_token(bot_id: str) -> Optional[str]:
-    """Получение токена бота сначала из переменных окружения, затем из базы данных"""
-    logger.info(f"Getting token for bot {bot_id}")
-    
-    # Сначала проверяем переменные окружения для конкретного бота
-    env_token_key = f"BOT_TOKEN_{bot_id.upper()}"
-    env_token = os.getenv(env_token_key)
-    if env_token:
-        logger.info(f"Token for bot {bot_id} found in environment variables")
-        return env_token
-    
-    # Затем проверяем общий токен из переменных окружения
-    env_token = os.getenv("BOT_TOKEN")
-    if env_token:
-        logger.info(f"Using general BOT_TOKEN environment variable for bot {bot_id}")
-        return env_token
+    """
+    Получает токен бота только из базы данных
+    """
+    logger.info(f"Получение токена для бота: {bot_id}")
     
     # Проверяем токен в базе данных
     try:
-        logger.info("Checking database for token")
+        logger.info("Проверка токена в базе данных")
+        
         # Получаем менеджер пользователей
-        user_manager = get_user_manager()
+        from core.models import UserManager
+        user_manager = UserManager()
         
         # Получаем владельца бота
         owner_id = user_manager.get_bot_owner(bot_id)
-        logger.info(f"Owner ID for bot {bot_id}: {owner_id}")
+        logger.info(f"ID владельца бота {bot_id}: {owner_id}")
+        
         if owner_id:
             # Получаем токен владельца для этого бота
             token = user_manager.get_user_token(owner_id, bot_id)
-            logger.info(f"Token from database for bot {bot_id}: {token}")
+            logger.info(f"Токен из базы данных для бота {bot_id}: {'*' * 10 if token else 'None'}")  # Скрыли отображение токена
+            
             if token:
-                logger.info(f"Token for bot {bot_id} found in database for user {owner_id}")
+                logger.info(f"Токен для бота {bot_id} найден в базе данных у пользователя {owner_id}")
                 return token
             else:
-                logger.info(f"No token found in database for bot {bot_id}")
+                logger.info(f"Токен не найден в базе данных для бота {bot_id}")
         else:
-            logger.info(f"No owner found for bot {bot_id}")
+            logger.info(f"Владелец не найден для бота {bot_id}")
     except Exception as e:
-        logger.error(f"Error reading token from database: {e}")
+        logger.error(f"Ошибка при чтении токена из базы данных: {e}")
     
-    logger.info(f"No token found for bot {bot_id}")
+    logger.info(f"Токен не найден для бота {bot_id}")
     return None
-
-
-@app.get("/api/get_token/{bot_id}/")
-def get_bot_token_endpoint(bot_id: str):
-    token = get_bot_token(bot_id)
-    return {"token": token or ""}
-
-
-# Добавляем новые эндпоинты для управления именем бота
-@app.post("/api/set_bot_name/{bot_id}/")
-def set_bot_name(bot_id: str, name_data: Dict[str, str]):
-    """Устанавливает имя бота в Telegram"""
-    try:
-        bot_token = get_bot_token(bot_id)
-        
-        if not bot_token:
-            raise HTTPException(status_code=404, detail="Токен бота не найден")
-        
-        bot_name = name_data.get("name", "").strip()
-        if not bot_name:
-            raise HTTPException(status_code=400, detail="Имя бота не может быть пустым")
-        
-        # Используем pyTelegramBotAPI для установки имени бота
-        bot = telebot.TeleBot(bot_token)
-        result = bot.set_my_name(bot_name)
-        
-        if result:
-            logger.info(f"✅ Имя бота '{bot_id}' успешно изменено на '{bot_name}'")
-            return {
-                "status": "success", 
-                "message": f"Имя бота успешно изменено на '{bot_name}'",
-                "name": bot_name
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Не удалось изменить имя бота")
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Ошибка установки имени бота '{bot_id}': {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка установки имени бота: {str(e)}")
-
-
-@app.get("/api/get_bot_name/{bot_id}/")
-def get_bot_name(bot_id: str):
-    """Получает текущее имя бота из Telegram"""
-    try:
-        bot_token = get_bot_token(bot_id)
-        
-        logger.info(f"Найденный токен: {bot_token}")
-        
-        if not bot_token:
-            logger.error(f"Токен бота '{bot_id}' не найден")
-            raise HTTPException(status_code=404, detail="Токен бота не найден")
-        
-        # Используем pyTelegramBotAPI для получения имени бота
-        bot = telebot.TeleBot(bot_token)
-        bot_info = bot.get_me()
-        current_name = bot_info.first_name
-        
-        return {
-            "status": "success",
-            "name": current_name
-        }
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Ошибка получения имени бота '{bot_id}': {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка получения имени бота: {str(e)}")
-
-
-@app.delete("/api/delete_token/{bot_id}/")
-def delete_bot_token(bot_id: str):
-    try:
-        tokens = load_tokens()
-        if bot_id in tokens:
-            del tokens[bot_id]
-            save_tokens(tokens)
-            return {"status": "success"}
-        # Даже если токен не найден, возвращаем успех, так как основная цель - удаление
-        return {"status": "success", "message": "Токен не найден, но бот удален"}
-    except Exception as e:
-        logger.error(f"Ошибка удаления токена для бота {bot_id}: {e}")
-        # Даже при ошибке удаления токена возвращаем успех, так как основная цель - удаление
-        return {"status": "success", "message": "Бот удален, но возникла ошибка при удалении токена"}
-
-
-@app.get("/api/check_token/{token}/")
-def check_token(token: str):
-    try:
-        if not validate_telegram_token(token):
-            return {"valid": False, "message": "Неверный формат токена"}
-
-        test_bot = telebot.TeleBot(token)
-        bot_info = test_bot.get_me()
-
-        return {
-            "valid": True,
-            "message": "Токен действителен",
-            "bot_username": bot_info.username,
-            "bot_name": f"{bot_info.first_name} {bot_info.last_name or ''}".strip()
-        }
-
-    except Exception as e:
-        return {"valid": False, "message": f"Ошибка: {str(e)}"}
-
-
-@app.get("/api/check_bot/{token}/")
-def check_bot(token: str):
-    """Проверяет, доступен ли бот с данным токеном"""
-    try:
-        bot = telebot.TeleBot(token)
-        bot_info = bot.get_me()
-        return {
-            "status": "success",
-            "username": f"@{bot_info.username}",
-            "name": f"{bot_info.first_name} {bot_info.last_name or ''}".strip(),
-            "id": bot_info.id
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-@app.post("/api/auth/admin/")
-def authenticate_admin_endpoint(auth_data: AuthData):
-    """Аутентификация администратора"""
-    if authenticate_admin(auth_data.password):
-        return {"status": "success", "message": "Аутентификация успешна"}
-    else:
-        raise HTTPException(status_code=401, detail="Неверный пароль")
-
-
-@app.post("/api/run_bot/{bot_id}/")
-def run_bot(bot_id: str, token_data: TokenData):
-    """Запуск бота с использованием токена из переменных окружения или файла"""
-    # Получаем токен из переменных окружения или файла
-    token = get_bot_token(bot_id)
-    
-    # Всегда используем токен из запроса, если он не найден в других источниках
-    # Это позволяет запускать ботов в продакшене с токеном из запроса
-    if not token:
-        token = token_data.token
-        if token:
-            logging.warning(f"Token for bot {bot_id} not found in environment or file, using token from request")
-    
-    if not token:
-        raise HTTPException(status_code=400, detail="Bot token is required")
-    
-    # Проверяем токен (убедимся, что это строка)
-    if isinstance(token, str) and not check_token_sync(token):
-        raise HTTPException(status_code=400, detail="Invalid bot token")
-    
-    # Остальной код запуска бота остается без изменений
-    if bot_id in running_bots and running_bots[bot_id].is_alive():
-        return {"status": "error", "message": "Бот уже запущен."}
-
-    # Проверяем сеть
-    try:
-        response = requests.get('https://api.telegram.org', timeout=10)
-        if response.status_code != 200:
-            return {"status": "error", "message": "Нет подключения к Telegram API"}
-    except:
-        return {"status": "error", "message": "Нет интернет-соединения"}
-
-    scenario_data = load_scenario(bot_id)
-    if not scenario_data.nodes:
-        return {"status": "error", "message": "Сценарий пуст."}
-
-    try:
-        thread = threading.Thread(
-            target=start_telegram_bot,
-            args=(token, scenario_data.dict(), bot_id),
-            name=f"Bot_{bot_id}"
-        )
-        thread.daemon = True
-        thread.start()
-        running_bots[bot_id] = thread
-
-        return {"status": "success", "message": "Бот успешно запущен!"}
-
-    except Exception as e:
-        return {"status": "error", "message": f"Ошибка запуска: {str(e)}"}
-
 
 @app.get("/api/stop_bot/{bot_id}/")
 def stop_bot(bot_id: str):
@@ -1675,6 +1383,53 @@ def stop_bot(bot_id: str):
         logger.error(f"❌ Ошибка остановки бота {bot_id}: {e}")
         return {"status": "error", "message": f"Ошибка остановки: {str(e)}"}
 
+@app.post("/api/run_bot/{bot_id}/")
+def run_bot_endpoint(bot_id: str, token_data: TokenData):
+    """Запускает бота с указанным токеном"""
+    try:
+        token = token_data.token
+        
+        # Проверяем валидность токена
+        if not validate_telegram_token(token):
+            raise HTTPException(status_code=400, detail="Невалидный токен Telegram")
+        
+        # Проверяем подключение к Telegram
+        if not check_token_sync(token):
+            raise HTTPException(status_code=400, detail="Не удалось подключиться к Telegram API с этим токеном")
+        
+        # Останавливаем бота, если он уже запущен
+        if bot_id in running_bots:
+            logger.info(f"🛑 Бот {bot_id} уже запущен, останавливаем перед перезапуском")
+            stop_bot(bot_id)
+        
+        # Загружаем сценарий
+        scenario = load_scenario(bot_id)
+        if not scenario.nodes:
+            raise HTTPException(status_code=400, detail="Сценарий бота пуст")
+        
+        # Запускаем бота в отдельном потоке
+        bot_thread = threading.Thread(
+            target=start_telegram_bot,
+            args=(token, scenario.dict(), bot_id),
+            name=f"bot_{bot_id}_{bot_restart_counter.get(bot_id, 0)}"
+        )
+        bot_thread.daemon = True
+        bot_thread.start()
+        
+        # Сохраняем ссылку на поток
+        running_bots[bot_id] = bot_thread
+        
+        # Увеличиваем счетчик перезапусков
+        bot_restart_counter[bot_id] = bot_restart_counter.get(bot_id, 0) + 1
+        
+        logger.info(f"✅ Бот {bot_id} успешно запущен в потоке {bot_thread.name}")
+        return {"status": "success", "message": "Бот успешно запущен!"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Ошибка запуска бота {bot_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка запуска бота: {str(e)}")
 
 @app.get("/api/health/")
 def health_check():
@@ -1685,11 +1440,28 @@ def health_check():
         "timestamp": time.time()
     }
 
-
-
-
-
 # ========== ЭНДПОИНТЫ АВТОРИЗАЦИИ И АУТЕНТИФИКАЦИИ ==========
+
+# Глобальная переменная для менеджера пользователей
+user_manager = None
+
+def get_user_manager():
+    """Получает экземпляр менеджера пользователей"""
+    global user_manager
+    if user_manager is None:
+        from core.models import UserManager
+        user_manager = UserManager()
+    return user_manager
+
+@app.options("/api/register/")
+async def api_register_options():
+    """Обработка OPTIONS запроса для регистрации пользователя"""
+    response = JSONResponse({"status": "success"})
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 @app.post("/api/register/")
 async def api_register_user(user_data: RegisterUserRequest):
@@ -1710,7 +1482,12 @@ async def api_register_user(user_data: RegisterUserRequest):
         
         if success:
             logger.info(f"User {user_data.username} registered successfully")
-            return {"status": "success", "message": "User registered successfully"}
+            response_data = {"status": "success", "message": "User registered successfully"}
+            # Добавляем CORS заголовки
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
         else:
             logger.warning(f"User registration failed for {user_data.username}")
             raise HTTPException(status_code=400, detail="User already exists or registration failed")
@@ -1720,6 +1497,15 @@ async def api_register_user(user_data: RegisterUserRequest):
         logger.error(f"Error registering user: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.options("/api/login/")
+async def api_login_options():
+    """Обработка OPTIONS запроса для аутентификации пользователя"""
+    response = JSONResponse({"status": "success"})
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 @app.post("/api/login/")
 async def api_login_user(user_data: LoginUserRequest):
@@ -1735,10 +1521,15 @@ async def api_login_user(user_data: LoginUserRequest):
         
         if user:
             # Возвращаем данные пользователя (без пароля)
-            user_dict = user.dict()
+            user_dict = user.model_dump()
             user_dict.pop("password_hash", None)
             print(f"User dict: {user_dict}")
-            return {"status": "success", "user": user_dict, "message": "Login successful"}
+            response_data = {"status": "success", "user": user_dict, "message": "Login successful"}
+            # Добавляем CORS заголовки
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
         else:
             print("Invalid credentials")
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1748,8 +1539,17 @@ async def api_login_user(user_data: LoginUserRequest):
         logger.error(f"Error logging in user: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 # ========== ЭНДПОИНТЫ УПРАВЛЕНИЯ ТОКЕНАМИ ПОЛЬЗОВАТЕЛЕЙ ==========
+
+@app.options("/api/user/save_token/")
+async def api_save_user_token_options():
+    """Обработка OPTIONS запроса для сохранения токена пользователя"""
+    response = JSONResponse({"status": "success"})
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 @app.post("/api/user/save_token/")
 async def api_save_user_token(token_data: SaveTokenRequest):
@@ -1762,7 +1562,12 @@ async def api_save_user_token(token_data: SaveTokenRequest):
         success = user_manager.save_user_token(token_data.user_id, token_data.bot_id, token_data.token)
         
         if success:
-            return {"message": "Token saved successfully"}
+            response_data = {"message": "Token saved successfully"}
+            # Добавляем CORS заголовки
+            response = JSONResponse(response_data)
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
         else:
             raise HTTPException(status_code=500, detail="Failed to save token")
     except HTTPException:
@@ -1770,7 +1575,6 @@ async def api_save_user_token(token_data: SaveTokenRequest):
     except Exception as e:
         logger.error(f"Error saving user token: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @app.get("/api/user/get_token/{bot_id}/")
 async def api_get_user_token(bot_id: str, user_id: str):
@@ -1781,16 +1585,54 @@ async def api_get_user_token(bot_id: str, user_id: str):
         
         # Получаем токен
         token = user_manager.get_user_token(user_id, bot_id)
-    
+        
+        if token:
+            return {"token": token}
+        else:
+            raise HTTPException(status_code=404, detail="Token not found")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting user token: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.options("/api/user/{user_id}/")
+async def delete_user_options(user_id: str):
+    """Обработка OPTIONS запроса для удаления пользователя"""
+    response = JSONResponse({"status": "success"})
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
-
-
+@app.delete("/api/user/{user_id}/")
+def delete_user(user_id: str, deleted_by_user_id: str):
+    """Удаление пользователя и всей связанной информации (только для super_admin)"""
+    try:
+        print(f"API call to delete_user: user_id={user_id}, deleted_by={deleted_by_user_id}")
+        
+        # Validate input parameters
+        if not user_id or not deleted_by_user_id:
+            raise HTTPException(status_code=400, detail="User ID and deleted_by_user_id are required")
+        
+        # Get user manager
+        from core.models import UserManager
+        user_manager = UserManager()
+        
+        # Delete user and associated data
+        success = user_manager.delete_user_and_associated_data(user_id, deleted_by_user_id)
+        
+        if success:
+            logger.info(f"User {user_id} and all associated data successfully deleted by {deleted_by_user_id}")
+            return {"status": "success", "message": "User and all associated data successfully deleted"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete user or user not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.delete("/api/user/delete_token/{bot_id}/")
 async def api_delete_user_token(bot_id: str, user_id: str):
@@ -1812,8 +1654,6 @@ async def api_delete_user_token(bot_id: str, user_id: str):
         logger.error(f"Error deleting user token: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-
 @app.get("/api/bot_status/")
 def get_bot_status():
     statuses = {}
@@ -1833,8 +1673,8 @@ def get_bot_running_status(bot_id: str):
 @app.get("/api/bot_info/{bot_id}/")
 def get_bot_info(bot_id: str):
     scenario = load_scenario(bot_id)
-    tokens = load_tokens()
-    token = tokens.get(bot_id, "")
+    # Всегда получаем токен из базы данных, а не из переменных окружения
+    token = get_bot_token(bot_id)
 
     node_stats = {}
     for node in scenario.nodes:
@@ -1851,6 +1691,15 @@ def get_bot_info(bot_id: str):
         "is_running": bot_id in running_bots and running_bots[bot_id].is_alive()
     }
 
+@app.get("/api/get_scenario/{bot_id}/")
+def get_scenario(bot_id: str):
+    """Загружает сценарий бота из папки bots/"""
+    try:
+        scenario = load_scenario(bot_id)
+        return scenario.dict()
+    except Exception as e:
+        logger.error(f"Ошибка загрузки сценария для бота {bot_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки сценария: {str(e)}")
 
 @app.post("/api/rename_bot/{old_bot_id}/{new_bot_id}/")
 def rename_bot(old_bot_id: str, new_bot_id: str):
@@ -1873,13 +1722,26 @@ def rename_bot(old_bot_id: str, new_bot_id: str):
         # Переименовываем файл сценария
         os.rename(old_file_path, new_file_path)
         
-        # Обновляем токен (если есть)
-        tokens = load_tokens()
-        if old_bot_id in tokens:
-            token = tokens[old_bot_id]
-            del tokens[old_bot_id]
-            tokens[new_bot_id] = token
-            save_tokens(tokens)
+        # Обновляем токен в базе данных (если есть)
+        try:
+            # Получаем менеджер пользователей
+            user_manager = get_user_manager()
+            
+            # Получаем владельца старого бота
+            owner_id = user_manager.get_bot_owner(old_bot_id)
+            if owner_id:
+                # Получаем токен старого бота
+                token = user_manager.get_user_token(owner_id, old_bot_id)
+                if token:
+                    # Удаляем токен старого бота
+                    user_manager.delete_user_token(owner_id, old_bot_id)
+                    # Сохраняем токен для нового бота
+                    user_manager.save_user_token(owner_id, new_bot_id, token)
+                
+                # Обновляем право собственности
+                user_manager.register_bot_ownership(owner_id, new_bot_id)
+        except Exception as e:
+            logger.error(f"Ошибка обновления токена при переименовании бота: {e}")
         
         # Останавливаем бота, если он запущен
         if old_bot_id in running_bots:
@@ -1899,19 +1761,125 @@ def rename_bot(old_bot_id: str, new_bot_id: str):
         logger.error(f"❌ Ошибка переименования бота '{old_bot_id}': {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка переименования бота: {str(e)}")
 
+@app.get("/api/get_bots/")
+def get_bots_endpoint(user_id: Optional[str] = None):
+    """Получает список ботов для пользователя или все боты для суперадмина"""
+    try:
+        # Проверяем, что user_id действителен
+        if user_id == "undefined" or not user_id:
+            # Return empty list for invalid user_id
+            return []
+        
+        # Получаем менеджер пользователей
+        user_manager = get_user_manager()
+        
+        # Проверяем, является ли пользователь суперадмином
+        is_admin = user_manager.is_super_admin(user_id)
+        
+        if is_admin:
+            # Суперадмин видит все боты
+            bots = user_manager.get_all_bots_for_super_admin()
+        else:
+            # Обычный пользователь видит только свои боты
+            bots = user_manager.get_user_bots(user_id)
+        
+        return bots
+    except Exception as e:
+        logger.error(f"Ошибка получения списка ботов для пользователя {user_id}: {e}")
+        return []
+
+@app.get("/api/get_all_users/")
+def get_all_users_endpoint(user_id: Optional[str] = None):
+    """Получает список всех пользователей (только для суперадмина)"""
+    try:
+        # Проверяем, что user_id действителен
+        if user_id == "undefined" or not user_id:
+            logger.info("Invalid user_id: undefined or empty")
+            return []
+        
+        # Получаем менеджер пользователей
+        user_manager = get_user_manager()
+        
+        # Проверяем, является ли пользователь суперадмином
+        is_admin = user_manager.is_super_admin(user_id)
+        logger.info(f"User {user_id} is super admin: {is_admin}")
+        
+        if is_admin:
+            # Суперадмин видит всех пользователей
+            users = user_manager.get_all_users()
+            logger.info(f"Returning {len(users)} users for super admin {user_id}")
+        else:
+            # Обычный пользователь не имеет доступа
+            users = []
+            logger.info(f"User {user_id} is not super admin, returning empty list")
+        
+        return users
+    except Exception as e:
+        logger.error(f"Ошибка получения списка всех пользователей для пользователя {user_id}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return []
+
+@app.post("/api/create_bot/")
+def create_bot(bot_id: str, user_id: str):
+    """Создает нового бота с пустым сценарием"""
+    try:
+        logger.info(f"Создание нового бота: bot_id={bot_id}, user_id={user_id}")
+        
+        # Проверяем, что bot_id и user_id не пустые
+        if not bot_id or not user_id:
+            raise HTTPException(status_code=400, detail="Bot ID and User ID are required")
+        
+        # Проверяем, что бот с таким ID еще не существует
+        from core.models import UserManager
+        user_manager = UserManager()
+        
+        # Проверяем, существует ли уже бот с таким ID
+        existing_owner = user_manager.get_bot_owner(bot_id)
+        if existing_owner:
+            raise HTTPException(status_code=400, detail=f"Бот с ID '{bot_id}' уже существует")
+        
+        # Создаем пустой сценарий
+        empty_scenario = Scenario(nodes=[], edges=[])
+        
+        # Сохраняем пустой сценарий
+        save_scenario(bot_id, empty_scenario, user_id)
+        
+        # Регистрируем право собственности на бота
+        user_manager.register_bot_ownership(user_id, bot_id)
+        
+        logger.info(f"✅ Бот {bot_id} успешно создан для пользователя {user_id}")
+        return {
+            "status": "success", 
+            "message": f"Бот '{bot_id}' успешно создан",
+            "bot_id": bot_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Ошибка создания бота {bot_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка создания бота: {str(e)}")
+
+@app.post("/api/save_scenario/{bot_id}/")
+def save_scenario_endpoint(bot_id: str, scenario: Scenario, user_id: Optional[str] = None):
+    """Сохраняет сценарий бота"""
+    try:
+        logger.info(f"Сохранение сценария для бота: {bot_id}")
+        
+        # Сохраняем сценарий
+        save_scenario(bot_id, scenario, user_id)
+        
+        logger.info(f"✅ Сценарий успешно сохранен для бота {bot_id}")
+        return {"status": "success", "message": "Сценарий успешно сохранен"}
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка сохранения сценария для бота {bot_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения сценария: {str(e)}")
+
 # Инициализация менеджера пользователей
 from core.models import UserManager, User, UserToken
 from core.db import db
-
-# Глобальная переменная для менеджера пользователей
-user_manager = None
-
-def get_user_manager():
-    """Получает экземпляр менеджера пользователей"""
-    global user_manager
-    if user_manager is None:
-        user_manager = UserManager()
-    return user_manager
 
 # Генерация ключа для шифрования (в продакшене должен храниться в переменных окружения)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
@@ -1958,13 +1926,12 @@ if __name__ == "__main__":
     if not db.create_tables():
         logger.error("Failed to create database tables")
         exit(1)
-
+    
     # Запускаем сервер
     logger.info("🚀 Запуск сервера FastAPI на порту 8001")
     uvicorn.run(
-        app,
+        "main:app",
         host="0.0.0.0",
-        port=8003,  # Используем порт 8003 чтобы избежать конфликта
-        log_level="info",
-        timeout_keep_alive=30
+        port=8001,  # Используем порт 8001
+        log_level="info"
     )

@@ -281,10 +281,22 @@ function ResponsiveBotList() {
 
       await api.post(`/api/save_scenario/${newBotName}/`, initialScenario);
 
-      // 4. Проверяем, что токен сохранился
-      console.log("Проверяем сохранение токена...");
-      const tokenCheck = await api.get(`/api/get_token/${newBotName}/`);
-      console.log("Токен сохранен:", tokenCheck.data.token ? "да" : "нет");
+      // 4. Сохраняем токен в базе данных (если указан)
+      if (botToken) {
+        try {
+          await api.post('/api/user/save_token/', {
+            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
+            bot_id: newBotName,
+            token: botToken
+          });
+          console.log("Токен успешно сохранен в базе данных");
+        } catch (tokenError) {
+          console.error('Error saving token to database:', tokenError);
+          // В случае ошибки сохраняем в localStorage как резервный вариант
+          localStorage.setItem(`botToken_${newBotName}`, botToken);
+          console.log("Токен сохранен локально (резервный вариант)");
+        }
+      }
 
       // Сбрасываем форму
       setNewBotName("");
@@ -295,7 +307,7 @@ function ResponsiveBotList() {
       console.log("Обновляем список ботов...");
       await fetchBots();
 
-      alert(`Бот "${newBotName}" успешно создан с токеном!`);
+      alert(`Бот "${newBotName}" успешно создан! Токен сохранен в базе данных.`);
 
     } catch (error) {
       console.error("Полная ошибка:", error);
@@ -306,8 +318,10 @@ function ResponsiveBotList() {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
+        // Передаем ID текущего пользователя в параметрах запроса
+        const params = user ? { deleted_by_user_id: user.id } : {};
         // Удаляем бота (это также удалит токен на бэкенде)
-        await api.delete(`/api/delete_bot/${botId}/`);
+        await api.delete(`/api/delete_bot/${botId}/`, { params });
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -348,9 +362,29 @@ function ResponsiveBotList() {
       
       setImportProgress("🚀 Импортируем бота...");
       
+      // Сохраняем токен в базе данных
+      if (importData.token) {
+        try {
+          await api.post('/api/user/save_token/', {
+            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
+            bot_id: importData.bot_id,
+            token: importData.token
+          });
+          console.log("Токен импортированного бота успешно сохранен в базе данных");
+        } catch (tokenError) {
+          console.error('Error saving imported bot token to database:', tokenError);
+          // В случае ошибки сохраняем в localStorage как резервный вариант
+          localStorage.setItem(`botToken_${importData.bot_id}`, importData.token);
+          console.log("Токен импортированного бота сохранен локально (резервный вариант)");
+        }
+      }
+      
+      // Удаляем токен из данных для импорта перед отправкой на сервер
+      const { token, ...safeImportData } = importData;
+      
       // Pass user ID as query parameter if user is logged in
       const params = user ? { user_id: user.id } : {};
-      const response = await api.post(`/api/import_bot/`, importData, { params });
+      const response = await api.post(`/api/import_bot/`, safeImportData, { params });
       
       if (response.data.status === "success") {
         setImportProgress("");

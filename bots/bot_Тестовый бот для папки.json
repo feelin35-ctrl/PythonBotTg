@@ -17,7 +17,10 @@
         "blockType": "start",
         "buttonLayout": null,
         "buttonsPerRow": null,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 250,
@@ -41,7 +44,10 @@
         "blockType": "message",
         "buttonLayout": null,
         "buttonsPerRow": null,
-        "hideKeyboard": null
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
       },
       "position": {
         "x": 250,

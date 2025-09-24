@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../../api';
+import { useAuth } from '../../components/Auth/AuthContext'; // Добавляем импорт контекста аутентификации
 
 const BotDetails = () => {
   const { botId } = useParams();
+  const { user } = useAuth(); // Получаем информацию о текущем пользователе
   const [botInfo, setBotInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,7 +55,9 @@ const BotDetails = () => {
   const handleDeleteBot = async () => {
     if (window.confirm(`Are you sure you want to delete bot ${botId}?`)) {
       try {
-        await api.delete(`/api/delete_bot/${botId}/`);
+        // Передаем ID текущего пользователя в параметрах запроса
+        const params = user ? { deleted_by_user_id: user.id } : {};
+        await api.delete(`/api/delete_bot/${botId}/`, { params });
         alert(`Bot ${botId} deleted successfully`);
         // Здесь можно добавить навигацию назад к списку ботов
       } catch (err) {

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { applyNodeChanges, applyEdgeChanges, addEdge } from 'reactflow';
 import api from '../../api'; // Импортируем наш настроенный экземпляр axios
-import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,11 +15,6 @@ export const useBotEditor = () => {
   const [botName, setBotName] = useState(''); // Добавляем состояние для имени бота
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
-
-  const { saveToHistory, undo, redo } = useUndoRedo({
-    nodes: initialNodes,
-    edges: edges
-  });
 
   // Функция для проверки статуса бота
   const checkBotStatus = useCallback(async () => {
@@ -245,19 +239,8 @@ export const useBotEditor = () => {
     const savedToken = localStorage.getItem(`botToken_${botId}`) || '';
     setBotToken(savedToken);
       
-    // Загружаем имя бота
-    api.get(`/api/get_bot_name/${botId}/`)
-      .then(res => {
-        if (res.data.status === 'success') {
-          console.log('Loaded bot name:', res.data.name);
-          setBotName(res.data.name || '');
-        }
-      })
-      .catch(error => {
-        handleApiError(error, 'loading bot name');
-        // Если не удалось получить имя, оставляем пустым
-        setBotName('');
-      });
+    // Устанавливаем имя бота равным его ID, так как у нас нет отдельного поля для имени
+    setBotName(botId || '');
   }, [botId, onDataChange]);
 
   const saveScenario = useCallback(() => {
@@ -361,7 +344,7 @@ export const useBotEditor = () => {
     }
   }, [botId, botToken]);
 
-  // Функция для сохранения имени бота
+  // Функция для сохранения имени бота (временно отключена, так как имя бота совпадает с его ID)
   const saveBotName = useCallback(async () => {
     if (!botName.trim()) {
       // На мобильных устройствах показываем уведомление через alert
@@ -373,27 +356,23 @@ export const useBotEditor = () => {
       return;
     }
 
-    try {
-      const response = await api.post(`/api/set_bot_name/${botId}/`, { name: botName });
-      // На мобильных устройствах показываем уведомление через alert
-      if (window.innerWidth <= 768) {
-        alert(response.data.message);
-      } else {
-        console.log(response.data.message);
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message;
-      // На мобильных устройствах показываем уведомление через alert
-      if (window.innerWidth <= 768) {
-        alert("Ошибка сохранения имени бота: " + errorMessage);
-      } else {
-        console.error("Ошибка сохранения имени бота:", errorMessage);
-      }
+    // В текущей архитектуре botId и является именем бота, поэтому сохранение имени не требуется
+    console.log("Имя бота совпадает с его ID, сохранение не требуется");
+    if (window.innerWidth <= 768) {
+      alert("Имя бота совпадает с его ID, сохранение не требуется");
     }
   }, [botId, botName]);
 
   const runBot = useCallback(async () => {
+    console.log("=== НАЧАЛО ФУНКЦИИ RUN_BOT ===");
+    console.log("botId:", botId);
+    console.log("botToken:", botToken);
+    console.log("botToken type:", typeof botToken);
+    console.log("botToken length:", botToken ? botToken.length : "undefined");
+    
+    // Проверяем, что botToken определен и не пуст
     if (!botToken) {
+      console.log("ОШИБКА: botToken не определен или пуст");
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert("Сначала сохраните токен");
@@ -403,10 +382,40 @@ export const useBotEditor = () => {
       return;
     }
 
+    // Проверяем тип botToken
+    if (typeof botToken !== 'string') {
+      console.log("ОШИБКА: botToken не является строкой");
+      if (window.innerWidth <= 768) {
+        alert("Токен имеет неправильный формат");
+      } else {
+        console.log("Токен имеет неправильный формат");
+      }
+      return;
+    }
+
+    // Проверяем, что botToken не пустая строка
+    if (botToken.trim() === '') {
+      console.log("ОШИБКА: botToken пустая строка");
+      if (window.innerWidth <= 768) {
+        alert("Сначала сохраните токен");
+      } else {
+        console.log("Сначала сохраните токен");
+      }
+      return;
+    }
+
+    console.log("Токен прошел все проверки, отправляем запрос...");
+
     setLoadingStatus(true);
     try {
+      console.log("Отправка запроса на запуск бота...");
+      console.log("URL:", `/api/run_bot/${botId}/`);
+      console.log("Данные запроса:", { token: botToken });
+      
       // Исправляем отправку токена в правильном формате
       const response = await api.post(`/api/run_bot/${botId}/`, { token: botToken });
+      console.log("Ответ от сервера:", response);
+      
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
@@ -416,6 +425,24 @@ export const useBotEditor = () => {
       // После запуска проверяем статус
       setTimeout(checkBotStatus, 1000);
     } catch (err) {
+      console.error("ОШИБКА ЗАПУСКА БОТА:", err);
+      console.error("Детали ошибки:", {
+        message: err.message,
+        response: err.response,
+        request: err.request,
+        config: err.config
+      });
+      
+      // Проверяем, есть ли детали ошибки от сервера
+      if (err.response) {
+        console.error("Детали ответа сервера:", {
+          status: err.response.status,
+          statusText: err.response.statusText,
+          headers: err.response.headers,
+          data: err.response.data
+        });
+      }
+      
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert("Ошибка запуска: " + (err.response?.data?.message || err.message));
@@ -424,6 +451,7 @@ export const useBotEditor = () => {
       }
     } finally {
       setLoadingStatus(false);
+      console.log("=== КОНЕЦ ФУНКЦИИ RUN_BOT ===");
     }
   }, [botId, botToken, checkBotStatus]);
 

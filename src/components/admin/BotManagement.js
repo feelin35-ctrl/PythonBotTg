@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../Auth/AuthContext';
 import api from '../../api';
 
 const BotManagement = () => {
+  const { user } = useAuth();
+  console.log('BotManagement - current user:', user);
   const [bots, setBots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBots();
-  }, []);
-
-  const fetchBots = async () => {
+  const fetchBots = useCallback(async () => {
     try {
       setLoading(true);
+      // Используем ID текущего пользователя вместо жестко закодированного '9'
+      const userId = user?.id || '9'; // Fallback to '9' if user ID is not available
       const response = await api.get('/api/get_bots/', {
-        params: { user_id: '9' } // ID суперадмина
+        params: { user_id: userId }
       });
       
-      setBots(response.data.bots || []);
+      // The API returns an array directly, not an object with a bots property
+      setBots(response.data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching bots:', err);
@@ -27,7 +29,11 @@ const BotManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchBots();
+  }, [fetchBots]);
 
   const handleViewDetails = (botId) => {
     // Переходим к странице деталей бота
@@ -37,7 +43,10 @@ const BotManagement = () => {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Are you sure you want to delete bot ${botId}?`)) {
       try {
-        await api.delete(`/api/delete_bot/${botId}/`);
+        // Передаем ID текущего пользователя в параметрах запроса
+        const params = user ? { deleted_by_user_id: user.id } : {};
+        console.log('Deleting bot with params:', { botId, params, user });
+        await api.delete(`/api/delete_bot/${botId}/`, { params });
         // Обновляем список ботов
         fetchBots();
       } catch (err) {

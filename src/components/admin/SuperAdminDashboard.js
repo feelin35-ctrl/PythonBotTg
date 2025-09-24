@@ -1,33 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../../utils/apiHelper';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../Auth/AuthContext';
 import api from '../../api';
 
 const SuperAdminDashboard = () => {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [bots, setBots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
+      // Use the current user's ID instead of hardcoded '9'
+      const userId = user?.id || '9'; // Fallback to '9' if user ID is not available
+      
       // Получаем список всех пользователей
       const usersResponse = await api.get('/api/get_all_users/', {
-        params: { user_id: '9' } // ID суперадмина
+        params: { user_id: userId }
       });
       
       // Получаем список всех ботов
       const botsResponse = await api.get('/api/get_bots/', {
-        params: { user_id: '9' } // ID суперадмина
+        params: { user_id: userId }
       });
       
-      setUsers(usersResponse.data.users || []);
-      setBots(botsResponse.data.bots || []);
+      // The API returns an array directly, not an object with a users/bots property
+      setUsers(usersResponse.data || []);
+      setBots(botsResponse.data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -35,15 +36,22 @@ const SuperAdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const updateUserRole = async (userId, newRole) => {
     try {
+      // Use the current user's ID for updated_by_user_id
+      const currentUserId = user?.id || '9';
+      
       await api.post('/api/update_user_role/', null, {
         params: {
           user_id: userId,
           new_role: newRole,
-          updated_by_user_id: '9' // ID суперадмина
+          updated_by_user_id: currentUserId
         }
       });
       

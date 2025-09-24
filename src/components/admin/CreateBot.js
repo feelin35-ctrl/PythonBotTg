@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../Auth/AuthContext';
 import api from '../../api';
 
 const CreateBot = () => {
+  const { user } = useAuth();
   const [botId, setBotId] = useState('');
   const [botToken, setBotToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,10 +17,12 @@ const CreateBot = () => {
     setError('');
 
     try {
+      const userId = user?.id || '9'; // Fallback to '9' if user ID is not available
+      
       const response = await api.post('/api/create_bot/', null, {
         params: {
           bot_id: botId,
-          user_id: '9' // ID суперадмина
+          user_id: userId
         }
       });
 
@@ -27,7 +31,7 @@ const CreateBot = () => {
         if (botToken) {
           try {
             await api.post('/api/user/save_token/', {
-              user_id: '9', // ID суперадмина
+              user_id: userId,
               bot_id: botId,
               token: botToken
             });

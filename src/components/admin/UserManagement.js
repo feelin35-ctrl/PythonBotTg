@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../Auth/AuthContext';
 import api from '../../api';
 
 const UserManagement = () => {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,18 +14,17 @@ const UserManagement = () => {
     role: 'user'
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      // Используем ID текущего пользователя вместо жестко закодированного '9'
+      const userId = user?.id || '9'; // Fallback to '9' if user ID is not available
       const response = await api.get('/api/get_all_users/', {
-        params: { user_id: '9' } // ID суперадмина
+        params: { user_id: userId }
       });
       
-      setUsers(response.data.users || []);
+      // The API returns an array directly, not an object with a users property
+      setUsers(response.data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -31,7 +32,11 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]); // Теперь fetchUsers мемоизирован и безопасен для использования в зависимостях
 
   const handleEdit = (user) => {
     setEditingUser(user.id);
@@ -53,11 +58,13 @@ const UserManagement = () => {
 
   const handleSave = async () => {
     try {
+      // Используем ID текущего пользователя вместо жестко закодированного '9'
+      const currentUserId = user?.id || '9'; // Fallback to '9' if user ID is not available
       await api.post('/api/update_user_role/', null, {
         params: {
           user_id: editingUser,
           new_role: formData.role,
-          updated_by_user_id: '9' // ID суперадмина
+          updated_by_user_id: currentUserId
         }
       });
       
@@ -73,9 +80,18 @@ const UserManagement = () => {
   const handleDelete = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        // Здесь должна быть реализация удаления пользователя
-        // Пока просто покажем сообщение
-        alert('User deletion functionality would be implemented here');
+        // Используем ID текущего пользователя вместо жестко закодированного '9'
+        const currentUserId = user?.id || '9'; // Fallback to '9' if user ID is not available
+        // Отправляем запрос на удаление пользователя
+        await api.delete(`/api/user/${userId}/`, {
+          params: {
+            deleted_by_user_id: currentUserId
+          }
+        });
+        
+        // Обновляем список пользователей после удаления
+        fetchUsers();
+        alert('User deleted successfully');
       } catch (err) {
         console.error('Error deleting user:', err);
         alert('Failed to delete user');

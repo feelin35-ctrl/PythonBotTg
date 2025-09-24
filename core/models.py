@@ -339,3 +339,126 @@ class UserManager:
         except Exception as e:
             print(f"Ошибка получения всех ботов для super_admin: {e}")
             return []
+
+    def delete_user_and_associated_data(self, user_id: str, deleted_by_user_id: str) -> bool:
+        """Удаляет пользователя и всю связанную с ним информацию (только для super_admin)
+        
+        Args:
+            user_id (str): ID пользователя, которого нужно удалить
+            deleted_by_user_id (str): ID пользователя, который выполняет удаление (должен быть super_admin)
+            
+        Returns:
+            bool: True если пользователь успешно удален, False в противном случае
+            
+        Example:
+            # Удаление пользователя с ID "3" суперадмином с ID "1"
+            success = user_manager.delete_user_and_associated_data("3", "1")
+            
+        Note:
+            Эта функция удаляет:
+            - Самого пользователя из таблицы users
+            - Все токены пользователя из таблицы user_tokens
+            - Все боты пользователя и их сценарии
+            - Все записи о владении ботами из таблицы bot_owners
+            
+        Implementation Details:
+            1. Проверяет, что пользователь, выполняющий удаление, имеет роль super_admin
+            2. Получает список всех ботов пользователя
+            3. Для каждого бота:
+               - Удаляет запись о владении ботом из таблицы bot_owners
+               - Удаляет токен бота из таблицы user_tokens
+               - Удаляет файл сценария бота (если существует)
+            4. Удаляет все токены пользователя
+            5. Удаляет самого пользователя из таблицы users
+            
+        API Usage:
+            Для использования через API, отправьте DELETE запрос на:
+            DELETE /api/user/{user_id}/?deleted_by_user_id={deleted_by_user_id}
+            
+            Пример cURL:
+            curl -X DELETE "http://localhost:8003/api/user/USER_ID?deleted_by_user_id=SUPER_ADMIN_ID" \\
+                 -H "Content-Type: application/json"
+                 
+            Пример JavaScript:
+            fetch('http://localhost:8003/api/user/USER_ID?deleted_by_user_id=SUPER_ADMIN_ID', {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            })
+        """
+        try:
+            # First check if the user requesting the deletion is a super_admin
+            query = "SELECT role FROM users WHERE id = %s"
+            result = db.execute_query(query, (deleted_by_user_id,))
+            
+            if not result or len(result) == 0:
+                print("User requesting deletion not found")
+                return False
+                
+            requesting_user_role = result[0][0]
+            
+            # Only super_admin can delete users
+            if requesting_user_role != "super_admin":
+                print("Only super_admin can delete users")
+                return False
+            
+            # Get all bots owned by the user
+            user_bots = self.get_user_bots(user_id)
+            print(f"User {user_id} owns bots: {user_bots}")
+            
+            # Delete all bots and their associated data
+            for bot_id in user_bots:
+                print(f"Deleting bot {bot_id} and associated data...")
+                
+                # Delete bot ownership record
+                self.delete_bot_ownership(bot_id)
+                
+                # Delete bot token if exists
+                try:
+                    delete_token_query = "DELETE FROM user_tokens WHERE user_id = %s AND bot_id = %s"
+                    db.execute_update(delete_token_query, (user_id, bot_id))
+                    print(f"Deleted token for bot {bot_id}")
+                except Exception as e:
+                    print(f"Error deleting token for bot {bot_id}: {e}")
+                
+                # Delete bot scenario file if exists
+                try:
+                    from main import bot_file
+                    import os
+                    # Получаем владельца бота для определения правильного пути
+                    bot_owner = self.get_bot_owner(bot_id)
+                    if bot_owner:
+                        bot_file_path = bot_file(bot_id, bot_owner)
+                        if os.path.exists(bot_file_path):
+                            os.remove(bot_file_path)
+                            print(f"Deleted bot scenario file: {bot_file_path}")
+                    else:
+                        print(f"Could not determine owner for bot {bot_id}")
+                except Exception as e:
+                    print(f"Error deleting bot scenario file for bot {bot_id}: {e}")
+            
+            # Delete all user tokens
+            try:
+                delete_all_tokens_query = "DELETE FROM user_tokens WHERE user_id = %s"
+                db.execute_update(delete_all_tokens_query, (user_id,))
+                print(f"Deleted all tokens for user {user_id}")
+            except Exception as e:
+                print(f"Error deleting user tokens: {e}")
+            
+            # Finally, delete the user
+            delete_user_query = "DELETE FROM users WHERE id = %s"
+            result = db.execute_update(delete_user_query, (user_id,))
+            
+            success = result is not None and result > 0
+            if success:
+                print(f"User {user_id} and all associated data successfully deleted")
+            else:
+                print(f"Failed to delete user {user_id}")
+            
+            return success
+        except Exception as e:
+            print(f"Ошибка удаления пользователя и связанных данных: {e}")
+            import traceback
+            traceback.print_exc()
+            return False

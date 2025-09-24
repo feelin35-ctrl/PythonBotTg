@@ -32,9 +32,9 @@ function BotList() {
       const response = await api.get(`/api/get_bots/`, { params });
       
       console.log("Получен список ботов:", response.data);
-      // Добавляем проверку, что response.data.bots является массивом
-      if (response.data && Array.isArray(response.data.bots)) {
-        setBots(response.data.bots);
+      // Добавляем проверку, что response.data является массивом
+      if (response.data && Array.isArray(response.data)) {
+        setBots(response.data);
       } else {
         setBots([]); // Устанавливаем пустой массив, если данные некорректны
       }
@@ -143,10 +143,22 @@ function BotList() {
 
       await api.post(`/api/save_scenario/${newBotName}/`, initialScenario);
 
-      // 4. Проверяем, что токен будет доступен при запуске
-      console.log("Проверяем доступность токена...");
-      // В новой системе безопасности мы не проверяем токен через API
-      // Вместо этого полагаемся на то, что он будет доступен через переменные окружения или локальное хранилище
+      // 4. Сохраняем токен в базе данных (если указан)
+      if (botToken) {
+        try {
+          await api.post('/api/user/save_token/', {
+            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
+            bot_id: newBotName,
+            token: botToken
+          });
+          console.log("Токен успешно сохранен в базе данных");
+        } catch (tokenError) {
+          console.error('Error saving token to database:', tokenError);
+          // В случае ошибки сохраняем в localStorage как резервный вариант
+          localStorage.setItem(`botToken_${newBotName}`, botToken);
+          console.log("Токен сохранен локально (резервный вариант)");
+        }
+      }
 
       // Сбрасываем форму
       setNewBotName("");
@@ -157,7 +169,7 @@ function BotList() {
       console.log("Обновляем список ботов...");
       await fetchBots();
 
-      alert(`Бот "${newBotName}" успешно создан! В целях безопасности токен сохранен локально (только для разработки). Для продакшена используйте переменные окружения.`);
+      alert(`Бот "${newBotName}" успешно создан! Токен сохранен в базе данных.`);
     } catch (error) {
       console.error("Полная ошибка:", error);
       alert("Ошибка при создании бота: " + (error.response?.data?.message || error.message));
@@ -167,8 +179,10 @@ function BotList() {
   const handleDeleteBot = async (botId) => {
     if (window.confirm(`Удалить бота "${botId}"?`)) {
       try {
+        // Передаем ID текущего пользователя в параметрах запроса
+        const params = user ? { deleted_by_user_id: user.id } : {};
         // Удаляем бота (это также удалит токен на бэкенде)
-        await api.delete(`/api/delete_bot/${botId}/`);
+        await api.delete(`/api/delete_bot/${botId}/`, { params });
         console.log("Обновляем список ботов после удаления...");
         await fetchBots();
       } catch (error) {
@@ -209,11 +223,21 @@ function BotList() {
       
       setImportProgress("🚀 Импортируем бота...");
       
-      // В целях безопасности не сохраняем токены через API в продакшене
-      // Вместо этого сохраняем в локальном хранилище браузера (только для разработки)
-      if (process.env.NODE_ENV === 'development') {
-        localStorage.setItem(`botToken_${importData.bot_id}`, importData.token);
-        console.log("Токен импортированного бота сохранен локально (только для разработки)");
+      // Сохраняем токен в базе данных
+      if (importData.token) {
+        try {
+          await api.post('/api/user/save_token/', {
+            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
+            bot_id: importData.bot_id,
+            token: importData.token
+          });
+          console.log("Токен импортированного бота успешно сохранен в базе данных");
+        } catch (tokenError) {
+          console.error('Error saving imported bot token to database:', tokenError);
+          // В случае ошибки сохраняем в localStorage как резервный вариант
+          localStorage.setItem(`botToken_${importData.bot_id}`, importData.token);
+          console.log("Токен импортированного бота сохранен локально (резервный вариант)");
+        }
       }
       
       // Удаляем токен из данных для импорта перед отправкой на сервер
