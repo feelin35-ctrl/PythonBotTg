@@ -2,8 +2,8 @@
 export const getApiBaseUrl = () => {
   // Для разработки используем локальный сервер
   if (process.env.NODE_ENV === 'development') {
-    // Используем переменную окружения если задана, иначе localhost:8001
-    return process.env.REACT_APP_API_URL || 'http://localhost:8001';
+    // Используем переменную окружения если задана, иначе localhost:8002
+    return process.env.REACT_APP_API_URL || 'http://localhost:8002';
   }
   
   // Для продакшена сначала проверяем переменную окружения

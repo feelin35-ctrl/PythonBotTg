@@ -32,7 +32,7 @@ function BotList() {
       const response = await api.get(`/api/get_bots/`, { params });
       
       console.log("Получен список ботов:", response.data);
-      // Добавляем проверку, что response.data является массивом
+      // API возвращает массив напрямую, а не объект {bots: Array}
       if (response.data && Array.isArray(response.data)) {
         setBots(response.data);
       } else {
@@ -74,40 +74,33 @@ function BotList() {
       return;
     }
 
-    try {
-      // 1. Создаем бота with user ID if user is logged in
-      console.log("Создаем бота...");
-      console.log("Current user:", user);
-      
-      // Добавляем дополнительную проверку для user_id
-      let userId = null;
-      if (user && user.id) {
-        userId = user.id;
-        console.log("Using user ID from context:", userId);
-      } else {
-        console.log("No valid user ID found in context");
-      }
-      
-      // Формируем параметры правильно через объект params
-      const params = {
-        bot_id: newBotName
-      };
-      
-      // Добавляем user_id только если он существует
-      if (userId) {
-        params.user_id = userId;
-      }
-      
-      console.log("API params:", params);
-      
-      // Используем правильный способ передачи параметров в Axios
-      await api.post(`/api/create_bot/`, null, { params });
+    if (!user || !user.id) {
+      alert("Ошибка: пользователь не авторизован.");
+      return;
+    }
 
-      // 2. В целях безопасности не сохраняем токены через API в продакшене
-      // Вместо этого сохраняем в локальном хранилище браузера (только для разработки)
-      if (process.env.NODE_ENV === 'development') {
+    try {
+      // 1. Создаем бота
+      console.log("Создаем бота...");
+      const createParams = {
+        bot_id: newBotName,
+        user_id: user.id
+      };
+      await api.post(`/api/create_bot/`, null, { params: createParams });
+
+      // 2. Сохраняем токен
+      console.log("Сохраняем токен...");
+      try {
+        await api.post(`/api/users/${user.id}/bots/${newBotName}/token`, {
+          token: botToken
+        });
+        console.log("Токен успешно сохранен в базе данных");
+      } catch (tokenError) {
+        console.error('Error saving token to database:', tokenError);
+        // В случае ошибки сохраняем в localStorage как резервный вариант
         localStorage.setItem(`botToken_${newBotName}`, botToken);
-        console.log("Токен сохранен локально (только для разработки)");
+        console.log("Токен сохранен локально (резервный вариант)");
+        // We might want to inform the user here
       }
 
       // 3. Создаем начальный сценарий
@@ -140,39 +133,23 @@ function BotList() {
           }
         ]
       };
+      // Pass user_id to save_scenario as well
+      const saveScenarioParams = { user_id: user.id };
+      await api.post(`/api/save_scenario/${newBotName}/`, initialScenario, { params: saveScenarioParams });
 
-      await api.post(`/api/save_scenario/${newBotName}/`, initialScenario);
-
-      // 4. Сохраняем токен в базе данных (если указан)
-      if (botToken) {
-        try {
-          await api.post('/api/user/save_token/', {
-            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
-            bot_id: newBotName,
-            token: botToken
-          });
-          console.log("Токен успешно сохранен в базе данных");
-        } catch (tokenError) {
-          console.error('Error saving token to database:', tokenError);
-          // В случае ошибки сохраняем в localStorage как резервный вариант
-          localStorage.setItem(`botToken_${newBotName}`, botToken);
-          console.log("Токен сохранен локально (резервный вариант)");
-        }
-      }
-
-      // Сбрасываем форму
+      // 4. Сбрасываем форму и обновляем список
       setNewBotName("");
       setBotToken("");
       setShowTokenInput(false);
 
-      // Обновляем список
       console.log("Обновляем список ботов...");
       await fetchBots();
 
-      alert(`Бот "${newBotName}" успешно создан! Токен сохранен в базе данных.`);
+      alert(`Бот "${newBotName}" успешно создан!`);
+
     } catch (error) {
       console.error("Полная ошибка:", error);
-      alert("Ошибка при создании бота: " + (error.response?.data?.message || error.message));
+      alert("Ошибка при создании бота: " + (error.response?.data?.detail || error.response?.data?.message || error.message));
     }
   };
 
@@ -209,6 +186,10 @@ function BotList() {
       alert("Выберите файл для импорта");
       return;
     }
+    if (!user || !user.id) {
+      alert("Ошибка: пользователь не авторизован.");
+      return;
+    }
 
     try {
       setImportProgress("📂 Читаем файл...");
@@ -223,29 +204,10 @@ function BotList() {
       
       setImportProgress("🚀 Импортируем бота...");
       
-      // Сохраняем токен в базе данных
-      if (importData.token) {
-        try {
-          await api.post('/api/user/save_token/', {
-            user_id: user?.id || '9', // Fallback to '9' if user ID is not available
-            bot_id: importData.bot_id,
-            token: importData.token
-          });
-          console.log("Токен импортированного бота успешно сохранен в базе данных");
-        } catch (tokenError) {
-          console.error('Error saving imported bot token to database:', tokenError);
-          // В случае ошибки сохраняем в localStorage как резервный вариант
-          localStorage.setItem(`botToken_${importData.bot_id}`, importData.token);
-          console.log("Токен импортированного бота сохранен локально (резервный вариант)");
-        }
-      }
-      
-      // Удаляем токен из данных для импорта перед отправкой на сервер
-      const { token, ...safeImportData } = importData;
-      
-      // Pass user ID as query parameter if user is logged in
-      const params = user ? { user_id: user.id } : {};
-      const response = await api.post(`/api/import_bot/`, safeImportData, { params });
+      // Pass user ID as query parameter
+      const params = { user_id: user.id };
+      // The backend /api/import_bot/ will handle saving the token and scenario
+      const response = await api.post(`/api/import_bot/`, importData, { params });
       
       if (response.data.status === "success") {
         setImportProgress("");
@@ -256,7 +218,7 @@ function BotList() {
         console.log("Обновляем список ботов после импорта...");
         await fetchBots();
       
-        alert(`✅ ${response.data.message}\n🔧 Бот: @${response.data.bot_info?.username || 'неизвестно'}\n\nВ целях безопасности токен сохранен локально (только для разработки). Для продакшена используйте переменные окружения.`);
+        alert(`✅ ${response.data.message}\n🔖 Бот: @${response.data.bot_info?.username || 'неизвестно'}`);
       } else {
         throw new Error(response.data.message || "Неизвестная ошибка");
       }

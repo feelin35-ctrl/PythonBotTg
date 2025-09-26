@@ -21,10 +21,15 @@ const BotManagement = () => {
       });
       
       // The API returns an array directly, not an object with a bots property
-      setBots(response.data || []);
+      if (response.data && Array.isArray(response.data)) {
+        setBots(response.data);
+      } else {
+        setBots([]);
+      }
       setError(null);
     } catch (err) {
       console.error('Error fetching bots:', err);
+      setBots([]);
       setError('Failed to load bots');
     } finally {
       setLoading(false);

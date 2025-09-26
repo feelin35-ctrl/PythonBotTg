@@ -183,8 +183,13 @@ class UserManager:
             query = "SELECT bot_id FROM bot_owners WHERE user_id = %s"
             result = db.execute_query(query, (user_id,))
             
+            print(f"get_user_bots query result for user_id {user_id}: {result}")
+            
             if result:
-                return [row[0] for row in result]
+                bots = [row[0] for row in result]
+                print(f"Returning bots list: {bots}")
+                return bots
+            print("No bots found for user")
             return []
         except Exception as e:
             print(f"Ошибка получения списка ботов пользователя: {e}")

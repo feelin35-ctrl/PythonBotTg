@@ -17,74 +17,82 @@ const CreateBot = () => {
     setError('');
 
     try {
-      const userId = user?.id || '9'; // Fallback to '9' if user ID is not available
+      // Use a more robust way to get user ID
+      if (!user || !user.id) {
+        setError("User is not authenticated. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      const userId = user.id;
       
-      const response = await api.post('/api/create_bot/', null, {
+      // 1. Create the bot
+      await api.post('/api/create_bot/', null, {
         params: {
           bot_id: botId,
           user_id: userId
         }
       });
 
-      if (response.data.status === 'success') {
-        // Save the bot token to database
-        if (botToken) {
-          try {
-            await api.post('/api/user/save_token/', {
-              user_id: userId,
-              bot_id: botId,
-              token: botToken
-            });
-            console.log("Токен успешно сохранен в базе данных");
-          } catch (tokenError) {
-            console.error('Error saving token to database:', tokenError);
-            // В случае ошибки сохраняем в localStorage как резервный вариант
-            localStorage.setItem(`botToken_${botId}`, botToken);
-            console.log("Токен сохранен локально (резервный вариант)");
-          }
+      // 2. Save the bot token to the database if provided
+      if (botToken) {
+        try {
+          // Use the new, correct endpoint
+          await api.post(`/api/users/${userId}/bots/${botId}/token`, {
+            token: botToken
+          });
+          console.log("Токен успешно сохранен в базе данных");
+        } catch (tokenError) {
+          console.error('Error saving token to database:', tokenError);
+          // In case of an error, save to localStorage as a backup
+          localStorage.setItem(`botToken_${botId}`, botToken);
+          console.log("Токен сохранен локально (резервный вариант)");
+          // Optionally, inform the user that the token was saved locally
+          // setError("Bot created, but failed to save token to the database. It has been saved locally.");
         }
-
-        // Create initial scenario for the new bot
-        const initialScenario = {
-          nodes: [
-            {
-              id: "1",
-              type: "start",
-              data: {
-                blockType: "start",
-                label: "Добро пожаловать! Бот работает."
-              },
-              position: { x: 250, y: 100 }
-            },
-            {
-              id: "2",
-              type: "message",
-              data: {
-                blockType: "message",
-                label: "Это тестовое сообщение от вашего бота!"
-              },
-              position: { x: 250, y: 200 }
-            }
-          ],
-          edges: [
-            {
-              source: "1",
-              target: "2"
-            }
-          ]
-        };
-
-        // Save the initial scenario
-        await api.post(`/api/save_scenario/${botId}/`, initialScenario);
-        
-        // Navigate to the bot editor
-        navigate(`/editor/${botId}`);
-      } else {
-        setError(response.data.message || 'Failed to create bot');
       }
+
+      // 3. Create initial scenario for the new bot
+      const initialScenario = {
+        nodes: [
+          {
+            id: "1",
+            type: "start",
+            data: {
+              blockType: "start",
+              label: "Добро пожаловать! Бот работает."
+            },
+            position: { x: 250, y: 100 }
+          },
+          {
+            id: "2",
+            type: "message",
+            data: {
+              blockType: "message",
+              label: "Это тестовое сообщение от вашего бота!"
+            },
+            position: { x: 250, y: 200 }
+          }
+        ],
+        edges: [
+          {
+            source: "1",
+            target: "2"
+          }
+        ]
+      };
+
+      // 4. Save the initial scenario, passing user_id
+      await api.post(`/api/save_scenario/${botId}/`, initialScenario, {
+        params: { user_id: userId }
+      });
+      
+      // 5. Navigate to the bot editor
+      navigate(`/editor/${botId}`);
+
     } catch (err) {
       console.error('Error creating bot:', err);
-      setError('Failed to create bot');
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || 'Failed to create bot. Please check the console for details.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

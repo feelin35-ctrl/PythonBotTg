@@ -18,6 +18,9 @@ import SuperAdminLogin from "./components/admin/SuperAdminLogin";
 import SuperAdminLayout from "./components/admin/SuperAdminLayout";
 import SuperAdminDashboard from "./components/admin/SuperAdminDashboard";
 
+// Import proxy test component
+import ProxyTest from "./components/admin/ProxyTest";
+
 function App() {
   // Use improved ResizeObserver error handler
   useResizeObserverErrorHandler();
@@ -30,6 +33,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/test-auth" element={<TestAuth />} />
           <Route path="/test-user-context" element={<TestUserContext />} />
+          <Route path="/proxy-test" element={<ProxyTest />} />
           
           {/* Super Admin Routes */}
           <Route path="/superadmin/login" element={<SuperAdminLogin />} />

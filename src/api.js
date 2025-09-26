@@ -21,6 +21,11 @@ console.log('Axios instance created with baseURL:', API_BASE_URL);
 // Добавляем интерцептор для отладки запросов
 api.interceptors.request.use(request => {
   console.log('Starting Request:', request);
+  // Force the baseURL to be our correct URL if it's not already set
+  if (!request.baseURL || request.baseURL.includes(':8001')) {
+    console.log('Overriding baseURL from', request.baseURL, 'to', API_BASE_URL);
+    request.baseURL = API_BASE_URL;
+  }
   return request;
 });
 

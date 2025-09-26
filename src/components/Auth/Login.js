@@ -92,6 +92,7 @@ const Login = () => {
     setError('');
 
     try {
+      // Use the full URL to ensure it goes through the proxy
       const response = await api.post('/api/login/', {
         username,
         password
@@ -106,6 +107,7 @@ const Login = () => {
         setError(response.data.message || 'Ошибка авторизации');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Ошибка авторизации');
     } finally {
       setLoading(false);
