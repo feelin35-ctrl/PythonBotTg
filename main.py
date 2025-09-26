@@ -62,6 +62,22 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Добавим middleware для логирования запросов
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 Incoming request: {request.method} {request.url}")
+    start_time = time.time()
+    
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        logger.info(f"📤 Response status: {response.status_code} for {request.method} {request.url} - Time: {process_time:.2f}s")
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error(f"❌ Error processing request {request.method} {request.url} - Time: {process_time:.2f}s - Error: {e}")
+        raise
+
 # ✅ Разрешаем запросы с фронта
 # Для продакшена можно задать через переменные окружения
 import os
@@ -75,7 +91,8 @@ allowed_origins = [
     "http://localhost:3003", 
     "http://127.0.0.1:3003", 
     "http://45.150.9.70:8001",
-    "http://45.150.9.70"  # Добавляем адрес без порта для продакшена
+    "http://45.150.9.70",  # Добавляем адрес без порта для продакшена
+    "https://your-frontend-domain.com"  # Добавьте сюда домен вашего фронтенда
 ]
 
 # Добавляем дополнительные origins из переменной окружения
@@ -1471,7 +1488,8 @@ def health_check():
         "status": "healthy",
         "network": "ok" if check_telegram_connection() else "error",
         "active_bots": len(running_bots),
-        "timestamp": time.time()
+        "timestamp": time.time(),
+        "message": "Server is running and accepting requests"
     }
 
 # ========== ЭНДПОИНТЫ АВТОРИЗАЦИИ И АУТЕНТИФИКАЦИИ ==========
