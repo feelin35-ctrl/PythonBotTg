@@ -11,7 +11,7 @@ const KeywordIcon = () => (
   </svg>
 );
 
-export const KeywordProcessorNode = ({ data, ...props }) => {
+export const KeywordProcessorNode = ({ data, selected, ...props }) => {
   // Создаем объект данных для EditableNode, сохраняя пользовательские значения
   const nodeData = {
     ...data,
@@ -28,6 +28,7 @@ export const KeywordProcessorNode = ({ data, ...props }) => {
   return (
     <EditableNode 
       data={nodeData} 
+      selected={selected}
       {...props} 
     />
   );

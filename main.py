@@ -2,7 +2,8 @@
 Исправленная версия main.py с правильными обработчиками DELETE и OPTIONS
 """
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query
+
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
@@ -154,6 +155,28 @@ class Edge(BaseModel):
 class Scenario(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
+    admin_chat_id: Optional[str] = None
+    
+    class Config:
+        # Allow both snake_case and camelCase field names
+        @staticmethod
+        def alias_generator(field_name: str) -> str:
+            # Convert snake_case to camelCase
+            components = field_name.split('_')
+            return components[0] + ''.join(word.capitalize() for word in components[1:])
+        
+        populate_by_name = True
+        
+        # Allow both admin_chat_id and adminChatId
+        json_schema_extra = {
+            "examples": [
+                {
+                    "admin_chat_id": "123456789",
+                    "adminChatId": "123456789"
+                }
+            ]
+        }
+
 
 class BotImportData(BaseModel):
     bot_id: str
@@ -261,7 +284,7 @@ def save_scenario(bot_id: str, scenario: Scenario, user_id: Optional[str] = None
     # Если не можем определить владельца, возвращаем ошибку
     if not user_id:
         logger.error(f"Не удалось определить владельца бота {bot_id} для сохранения сценария")
-        raise Exception(f"Не удалось определить владельца бота {bot_id}")
+        raise ValueError(f"Не удалось определить владельца бота {bot_id}")
     
     try:
         file_path = bot_file(bot_id, user_id)
@@ -622,6 +645,17 @@ def start_telegram_bot(token: str, scenario_data: dict, bot_id: str):
                             result = scenario_runner.process_node(bot, message.chat.id, node_id, **message_context)
                             if result:
                                 return
+
+                        # Проверяем блок расписания
+                        elif hasattr(block, 'type') and block.type == 'schedule':
+                            logger.info(f"📅 Обработка ответа для блока расписания: {message.text}")
+                            # Обрабатываем ответ пользователя для блока расписания
+                            result = scenario_runner.handle_schedule_response(bot, message.chat.id, node_id, message.text)
+                            # Если handle_schedule_response вернул значение (не None), это означает, 
+                            # что нужно продолжить выполнение сценария
+                            # Если вернул None, это может означать успешное завершение блока расписания
+                            # В любом случае, прекращаем дальнейшую обработку сообщения
+                            return  # This should prevent the default message from being sent
 
                     # Если не кнопка и нет NLP блока, отправляем стандартный ответ
                     bot.send_message(message.chat.id, "ℹ️ Используйте /start для начала")
@@ -1696,7 +1730,14 @@ def get_scenario(bot_id: str):
     """Загружает сценарий бота из папки bots/"""
     try:
         scenario = load_scenario(bot_id)
-        return scenario.dict()
+        # Используем model_dump для совместимости с Pydantic V2
+        scenario_dict = scenario.model_dump()
+        
+        # Добавляем adminChatId для совместимости с фронтендом
+        if 'admin_chat_id' in scenario_dict and scenario_dict['admin_chat_id']:
+            scenario_dict['adminChatId'] = scenario_dict['admin_chat_id']
+        
+        return scenario_dict
     except Exception as e:
         logger.error(f"Ошибка загрузки сценария для бота {bot_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки сценария: {str(e)}")
@@ -1862,7 +1903,7 @@ def create_bot(bot_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Ошибка создания бота: {str(e)}")
 
 @app.post("/api/save_scenario/{bot_id}/")
-def save_scenario_endpoint(bot_id: str, scenario: Scenario, user_id: Optional[str] = None):
+def save_scenario_endpoint(bot_id: str, scenario: Scenario, user_id: Optional[str] = Query(None)):
     """Сохраняет сценарий бота"""
     try:
         logger.info(f"Сохранение сценария для бота: {bot_id}")
@@ -1873,6 +1914,9 @@ def save_scenario_endpoint(bot_id: str, scenario: Scenario, user_id: Optional[st
         logger.info(f"✅ Сценарий успешно сохранен для бота {bot_id}")
         return {"status": "success", "message": "Сценарий успешно сохранен"}
         
+    except ValueError as e:
+        logger.error(f"❌ Ошибка сохранения сценария для бота {bot_id}: {e}")
+        raise HTTPException(status_code=400, detail=f"Ошибка сохранения сценария: {str(e)}")
     except Exception as e:
         logger.error(f"❌ Ошибка сохранения сценария для бота {bot_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка сохранения сценария: {str(e)}")
@@ -1913,6 +1957,7 @@ def decrypt_token(encrypted_token: str) -> str:
         logger.error(f"Ошибка расшифровки токена: {e}")
         return ""
 
+
 # ========== ЗАПУСК СЕРВЕРА ==========
 if __name__ == "__main__":
     # Создаем папки если их нет
@@ -1928,10 +1973,10 @@ if __name__ == "__main__":
         exit(1)
     
     # Запускаем сервер
-    logger.info("🚀 Запуск сервера FastAPI на порту 8001")
+    logger.info("🚀 Запуск сервера FastAPI на порту 8002")
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,  # Используем порт 8001
+        port=8002,  # Используем порт 8002
         log_level="info"
     )

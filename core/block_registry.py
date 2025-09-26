@@ -1,5 +1,5 @@
-from typing import Dict, Type
 import logging
+from typing import Dict, Type
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,8 @@ class BlockRegistry:
             from blocks.nlp_response_block import NLPResponseBlock
             from blocks.delay_block import DelayBlock
             from blocks.keyword_processor_block import KeywordProcessorBlock
-            # Удалены блоки contextual_nlp_block и advanced_contextual_nlp_block
+            from blocks.product_block import ProductBlock  # Новый блок
+            from blocks.schedule_block import ScheduleBlock  # Новый блок расписания
 
             core_blocks = [
                 MessageBlock,
@@ -43,8 +44,9 @@ class BlockRegistry:
                 AutoUpdateBlock,
                 NLPResponseBlock,
                 DelayBlock,
-                KeywordProcessorBlock
-                # Удалены блоки ContextualNLPBlock и AdvancedContextualNLPBlock
+                KeywordProcessorBlock,
+                ProductBlock,  # Регистрация нового блока
+                ScheduleBlock  # Регистрация блока расписания
             ]
 
             for block_class in core_blocks:

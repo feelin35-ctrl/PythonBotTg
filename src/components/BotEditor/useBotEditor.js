@@ -13,6 +13,7 @@ export const useBotEditor = () => {
   const [edges, setEdges] = useState([]);
   const [botToken, setBotToken] = useState('');
   const [botName, setBotName] = useState(''); // Добавляем состояние для имени бота
+  const [adminChatId, setAdminChatId] = useState(''); // Добавляем состояние для chat ID администратора
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
@@ -229,15 +230,52 @@ export const useBotEditor = () => {
 
         setInitialNodes(loadedNodes);
         setEdges(loadedEdges);
+        
+        // Устанавливаем adminChatId из данных сценария, если он есть
+        if (res.data.adminChatId) {
+          setAdminChatId(res.data.adminChatId);
+        }
       })
       .catch(error => {
         handleApiError(error, 'loading scenario');
       });
 
-    // Для безопасности не загружаем токен напрямую из API
-    // Вместо этого устанавливаем пустое значение или значение из локального хранилища
-    const savedToken = localStorage.getItem(`botToken_${botId}`) || '';
-    setBotToken(savedToken);
+    // Функция для загрузки токена из базы данных
+    const loadTokenFromDatabase = async () => {
+      try {
+        // Получаем информацию о текущем пользователе из localStorage
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          console.log("Пользователь не авторизован, не можем загрузить токен из базы данных");
+          return;
+        }
+
+        let user;
+        try {
+          user = JSON.parse(storedUser);
+        } catch (e) {
+          console.log("Ошибка получения данных пользователя");
+          return;
+        }
+
+        // Загружаем токен из базы данных
+        const response = await api.get(`/api/user/get_token/${botId}/?user_id=${user.id}`);
+        if (response.data && response.data.token) {
+          setBotToken(response.data.token);
+          // Также сохраняем в localStorage для резервной загрузки
+          localStorage.setItem(`botToken_${botId}`, response.data.token);
+          console.log("Токен успешно загружен из базы данных");
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки токена из базы данных:", err);
+        // Если не удалось загрузить из базы данных, пробуем из localStorage
+        const savedToken = localStorage.getItem(`botToken_${botId}`) || '';
+        setBotToken(savedToken);
+      }
+    };
+
+    // Загружаем токен из базы данных или localStorage
+    loadTokenFromDatabase();
       
     // Устанавливаем имя бота равным его ID, так как у нас нет отдельного поля для имени
     setBotName(botId || '');
@@ -264,10 +302,32 @@ export const useBotEditor = () => {
 
     const cleanEdges = edges.map(({ animated, style, markerEnd, ...rest }) => rest);
 
-    api.post(`/api/save_scenario/${botId}/`, {
+    // Добавляем adminChatId в данные сценария
+    const scenarioData = {
       nodes: cleanNodes,
       edges: cleanEdges,
-    })
+      adminChatId: adminChatId || undefined // Добавляем adminChatId в данные сценария
+    };
+
+    // Получаем информацию о текущем пользователе из localStorage
+    const storedUser = localStorage.getItem('user');
+    let userId = null;
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        userId = user.id;
+      } catch (e) {
+        console.error("Ошибка получения данных пользователя:", e);
+      }
+    }
+
+    // Формируем URL с user_id в query параметрах, если пользователь авторизован
+    let url = `/api/save_scenario/${botId}/`;
+    if (userId) {
+      url += `?user_id=${userId}`;
+    }
+
+    api.post(url, scenarioData)
     .then(() => {
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
@@ -284,7 +344,7 @@ export const useBotEditor = () => {
         console.error("Ошибка сохранения:", err);
       }
     });
-  }, [botId, initialNodes, edges]);
+  }, [botId, initialNodes, edges, adminChatId]);
 
   const saveToken = useCallback(async () => {
     // Получаем информацию о текущем пользователе из localStorage
@@ -326,6 +386,9 @@ export const useBotEditor = () => {
       } else {
         console.log("Токен успешно сохранен в базе данных");
       }
+      
+      // Также сохраняем в localStorage как резервную копию
+      localStorage.setItem(`botToken_${botId}`, botToken);
     } catch (err) {
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
@@ -362,6 +425,28 @@ export const useBotEditor = () => {
       alert("Имя бота совпадает с его ID, сохранение не требуется");
     }
   }, [botId, botName]);
+
+  // Функция для сохранения adminChatId
+  const saveAdminChatId = useCallback(async () => {
+    if (adminChatId && !/^\d+$/.test(adminChatId)) {
+      // На мобильных устройствах показываем уведомление через alert
+      if (window.innerWidth <= 768) {
+        alert("Chat ID должен содержать только цифры");
+      } else {
+        console.log("Chat ID должен содержать только цифры");
+      }
+      return;
+    }
+
+    // Просто сохраняем сценарий, который уже включает adminChatId
+    saveScenario();
+    
+    if (window.innerWidth <= 768) {
+      alert("Chat ID администратора сохранен!");
+    } else {
+      console.log("Chat ID администратора сохранен");
+    }
+  }, [adminChatId, saveScenario]);
 
   const runBot = useCallback(async () => {
     console.log("=== НАЧАЛО ФУНКЦИИ RUN_BOT ===");
@@ -469,7 +554,12 @@ export const useBotEditor = () => {
 
     setLoadingStatus(true);
     try {
-      const response = await api.post(`/api/restart_bot/${botId}/`);
+      // Останавливаем бота
+      await api.get(`/api/stop_bot/${botId}/`);
+      
+      // Запускаем бота заново
+      const response = await api.post(`/api/run_bot/${botId}/`, { token: botToken });
+      
       // На мобильных устройствах показываем уведомление через alert
       if (window.innerWidth <= 768) {
         alert(response.data.message);
@@ -566,6 +656,8 @@ export const useBotEditor = () => {
     setBotToken,
     botName, // Возвращаем имя бота
     setBotName, // Возвращаем функцию для установки имени бота
+    adminChatId, // Возвращаем adminChatId
+    setAdminChatId, // Возвращаем функцию для установки adminChatId
     isBotRunning,
     loadingStatus,
     onDataChange,
@@ -575,6 +667,7 @@ export const useBotEditor = () => {
     saveScenario,
     saveToken,
     saveBotName, // Возвращаем функцию сохранения имени бота
+    saveAdminChatId, // Возвращаем функцию сохранения adminChatId
     runBot,
     restartBot,
     stopBot,

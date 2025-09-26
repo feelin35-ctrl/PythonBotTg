@@ -22,6 +22,8 @@ const BotEditor = () => {
     setBotToken,
     botName, // Получаем имя бота
     setBotName, // Получаем функцию для установки имени бота
+    adminChatId, // Получаем adminChatId
+    setAdminChatId, // Получаем функцию для установки adminChatId
     isBotRunning,
     loadingStatus,
     onDataChange,
@@ -31,6 +33,7 @@ const BotEditor = () => {
     saveScenario,
     saveToken,
     saveBotName, // Получаем функцию сохранения имени бота
+    saveAdminChatId, // Получаем функцию сохранения adminChatId
     runBot,
     restartBot,
     stopBot, // ← Новая функция остановки
@@ -80,8 +83,11 @@ const BotEditor = () => {
           setBotToken={setBotToken}
           botName={botName} // Передаем имя бота
           setBotName={setBotName} // Передаем функцию для установки имени бота
+          adminChatId={adminChatId} // Передаем adminChatId
+          setAdminChatId={setAdminChatId} // Передаем функцию для установки adminChatId
           onSaveToken={saveToken}
           onSaveBotName={saveBotName} // Передаем функцию сохранения имени бота
+          onSaveAdminChatId={saveAdminChatId} // Передаем функцию сохранения adminChatId
           onSaveScenario={saveScenario}
           onDeleteSelected={deleteSelectedNodes}
           onDeleteAll={deleteAllNodes}

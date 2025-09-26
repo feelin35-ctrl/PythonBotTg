@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import telebot
 from .block_registry import block_registry
 import logging
@@ -12,8 +12,9 @@ class ScenarioRunner:
     def __init__(self, scenario_data: Dict):
         self.scenario_data = scenario_data
         self.nodes_map = self._create_nodes_map()
+        self.user_contexts = {}  # Храним контекст для каждого пользователя
 
-    def _create_nodes_map(self) -> Dict[str, any]:
+    def _create_nodes_map(self) -> Dict[str, Any]:
         """Создает карту узлов с экземплярами блоков"""
         nodes_map = {}
         for node in self.scenario_data.get('nodes', []):
@@ -48,8 +49,18 @@ class ScenarioRunner:
         try:
             logger.info(f"🔹 Обрабатываем узел {node_id} типа {block.type}")
 
+            # Передаем контекст пользователя в блок
+            user_context = self.user_contexts.get(chat_id, {})
+            kwargs['user_context'] = user_context
+            
+            # Передаем данные сценария в блок
+            kwargs['scenario_data'] = self.scenario_data
+
             # Выполняем блок
             next_node_id = block.execute(bot, chat_id, **kwargs)
+
+            # Сохраняем обновленный контекст
+            self.user_contexts[chat_id] = user_context
 
             # Если блок не вернул следующий узел, ищем его по связям
             if next_node_id is None:
@@ -66,6 +77,42 @@ class ScenarioRunner:
             logger.error(f"❌ Ошибка в узле {node_id}: {e}")
             try:
                 bot.send_message(chat_id, "Произошла ошибка при обработке запроса 😔")
+            except:
+                pass
+            return None
+
+    def handle_schedule_response(self, bot: telebot.TeleBot, chat_id: int, node_id: str, user_response: str) -> Optional[str]:
+        """Обрабатывает ответ пользователя для блока расписания"""
+        block = self.nodes_map.get(node_id)
+        if not block or not hasattr(block, 'type') or block.type != 'schedule':
+            return None
+
+        try:
+            # Получаем контекст пользователя
+            user_context = self.user_contexts.get(chat_id, {})
+            
+            # Определяем, какой тип ответа мы ожидаем (дата или время)
+            if 'selected_date' not in user_context:
+                # Ожидаем дату
+                next_node_id = block.process_date_response(bot, chat_id, user_response, user_context=user_context, scenario_data=self.scenario_data)
+            else:
+                # Ожидаем время
+                next_node_id = block.process_time_response(bot, chat_id, user_response, user_context=user_context, scenario_data=self.scenario_data)
+            
+            # Сохраняем обновленный контекст
+            self.user_contexts[chat_id] = user_context
+
+            if next_node_id:
+                logger.info(f"➡️ Переходим к узлу {next_node_id}")
+                return next_node_id
+            else:
+                # Ожидаем следующий ответ от пользователя
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка обработки ответа для блока расписания: {e}")
+            try:
+                bot.send_message(chat_id, "Произошла ошибка при обработке вашего ответа 😔")
             except:
                 pass
             return None

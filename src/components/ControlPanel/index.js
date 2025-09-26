@@ -6,8 +6,11 @@ const ControlPanel = ({
   setBotToken,
   botName, // Получаем имя бота
   setBotName, // Получаем функцию для установки имени бота
+  adminChatId, // Получаем adminChatId
+  setAdminChatId, // Получаем функцию для установки adminChatId
   onSaveToken,
   onSaveBotName, // Получаем функцию сохранения имени бота
+  onSaveAdminChatId, // Получаем функцию сохранения adminChatId
   onSaveScenario,
   onDeleteSelected,
   onDeleteAll,
@@ -24,18 +27,22 @@ const ControlPanel = ({
 }) => {
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [showBotNameInput, setShowBotNameInput] = useState(false); // Состояние для отображения поля имени бота
+  const [showAdminChatIdInput, setShowAdminChatIdInput] = useState(false); // Состояние для отображения поля adminChatId
   const [showStats, setShowStats] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const tokenButtonRef = useRef(null);
   const botNameButtonRef = useRef(null);
+  const adminChatIdButtonRef = useRef(null); // Ref для кнопки adminChatId
   const statsButtonRef = useRef(null);
   const tokenPopupRef = useRef(null);
   const botNamePopupRef = useRef(null);
+  const adminChatIdPopupRef = useRef(null); // Ref для попапа adminChatId
   const statsPopupRef = useRef(null);
 
   const [tokenPopupVisible, setTokenPopupVisible] = useState(false);
   const [botNamePopupVisible, setBotNamePopupVisible] = useState(false);
+  const [adminChatIdPopupVisible, setAdminChatIdPopupVisible] = useState(false); // Состояние видимости попапа adminChatId
   const [statsPopupVisible, setStatsPopupVisible] = useState(false);
 
   // Удаляем эффекты позиционирования, которые вызывали перемещение попапов после появления
@@ -56,6 +63,9 @@ const ControlPanel = ({
       if (showBotNameInput && botNamePopupVisible && botNamePopupRef.current) {
         positionPopup(botNameButtonRef, botNamePopupRef);
       }
+      if (showAdminChatIdInput && adminChatIdPopupVisible && adminChatIdPopupRef.current) {
+        positionPopup(adminChatIdButtonRef, adminChatIdPopupRef);
+      }
       if (showStats && statsPopupVisible && statsPopupRef.current) {
         positionPopup(statsButtonRef, statsPopupRef);
       }
@@ -63,7 +73,7 @@ const ControlPanel = ({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showStats, statsPopupVisible]);
+  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showAdminChatIdInput, adminChatIdPopupVisible, showStats, statsPopupVisible]);
 
   // Обработчик для закрытия попапов при клике вне их области
   useEffect(() => {
@@ -94,6 +104,18 @@ const ControlPanel = ({
         }
       }
       
+      // Попап adminChatId
+      if (showAdminChatIdInput && adminChatIdPopupVisible && adminChatIdPopupRef.current) {
+        const isClickInsidePopup = adminChatIdPopupRef.current.contains(event.target);
+        const isClickOnButton = adminChatIdButtonRef.current && adminChatIdButtonRef.current.contains(event.target);
+        
+        // Если клик был вне попапа и вне кнопки, закрываем попап
+        if (!isClickInsidePopup && !isClickOnButton) {
+          setShowAdminChatIdInput(false);
+          setAdminChatIdPopupVisible(false);
+        }
+      }
+      
       // Попап статистики
       if (showStats && statsPopupVisible && statsPopupRef.current) {
         const isClickInsidePopup = statsPopupRef.current.contains(event.target);
@@ -111,7 +133,7 @@ const ControlPanel = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showStats, statsPopupVisible]);
+  }, [showTokenInput, tokenPopupVisible, showBotNameInput, botNamePopupVisible, showAdminChatIdInput, adminChatIdPopupVisible, showStats, statsPopupVisible]);
 
   // Используем разные стили для мобильных и десктопных устройств
   const styles = isMobile ? mobileControlPanelStyles : controlPanelStyles;
@@ -198,6 +220,13 @@ const ControlPanel = ({
     setShowStats(true);
     setStatsPopupVisible(true);
   };
+
+  // Функция для показа попапа adminChatId
+  const showAdminChatIdPopup = () => {
+    setShowAdminChatIdInput(true);
+    setAdminChatIdPopupVisible(true);
+  };
+
 
   return (
     <div style={styles.panel}>
@@ -398,6 +427,92 @@ const ControlPanel = ({
               width: "100%"
             }}>
               Сохранить имя
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Управление Chat ID администратора */}
+      <div style={{ position: "relative" }}>
+        <button 
+          ref={adminChatIdButtonRef}
+          onClick={() => {
+            if (showAdminChatIdInput) {
+              setShowAdminChatIdInput(false);
+              setAdminChatIdPopupVisible(false);
+            } else {
+              showAdminChatIdPopup();
+            }
+          }} 
+          style={{
+            ...styles.button,
+            ...styles.warningButton
+          }} 
+          title="Управление Chat ID администратора"
+        >
+          👤
+        </button>
+
+        {showAdminChatIdInput && adminChatIdPopupVisible && (
+          <div 
+            ref={adminChatIdPopupRef} 
+            style={{
+              position: 'fixed',
+              background: 'white',
+              padding: '10px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+              zIndex: 10000,
+              minWidth: '150px',
+              fontSize: isMobile ? '10px' : '12px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              opacity: adminChatIdPopupVisible ? 1 : 0,
+              transform: adminChatIdPopupVisible ? 'scale(1)' : 'scale(0.95)',
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+              // Позиционируем попап по центру сверху сразу при рендере
+              left: '50%',
+              top: '20px',
+              transformOrigin: 'top center',
+              marginLeft: '-100px' // Половина ширины попапа (примерно)
+            }}
+          >
+            <input
+              type="text"
+              value={adminChatId || ""}
+              onChange={(e) => {
+                // Разрешаем только цифры
+                const value = e.target.value.replace(/[^0-9]/g, '');
+                setAdminChatId(value);
+              }}
+              placeholder="Chat ID администратора"
+              style={{
+                width: "100%",
+                padding: isMobile ? "4px" : "6px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                marginBottom: "5px",
+                fontSize: isMobile ? "10px" : "12px"
+              }}
+            />
+            <div style={{ 
+              fontSize: "10px", 
+              color: "#999", 
+              marginBottom: "5px",
+              fontStyle: "italic"
+            }}>
+              Только цифры
+            </div>
+            <button onClick={() => {
+              onSaveAdminChatId();
+              setShowAdminChatIdInput(false);
+              setAdminChatIdPopupVisible(false);
+            }} style={{
+              ...styles.button,
+              ...styles.warningButton,
+              width: "100%"
+            }}>
+              Сохранить Chat ID
             </button>
           </div>
         )}

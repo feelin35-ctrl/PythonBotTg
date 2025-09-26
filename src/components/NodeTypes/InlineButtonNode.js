@@ -4,7 +4,7 @@ import styled from 'styled-components';
 
 const NodeContainer = styled.div`
   background: #f3e5f5;
-  border: 2px solid #9c27b0;
+  border: 2px solid ${props => props.selected ? '#ff9800' : '#9c27b0'}; /* Оранжевая обводка для выбранного узла */
   border-radius: 8px;
   padding: 10px;
   width: 240px; /* Увеличена ширина на 20% (с 200px до 240px) */
@@ -12,9 +12,20 @@ const NodeContainer = styled.div`
   transition: all 0.3s ease;
   position: relative;
   
+  /* Добавляем стиль для выбранного узла */
+  ${props => props.selected && `
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.5), 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  `}
+  
   &:hover {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
+    
+    /* Увеличиваем тень при наведении на выбранный узел */
+    ${props => props.selected && `
+      box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.2);
+    `}
   }
   
   @media (max-width: 768px) {
@@ -91,7 +102,7 @@ const ButtonInput = styled.input`
   }
 `;
 
-const InlineButtonNode = ({ data }) => {
+const InlineButtonNode = ({ data, selected }) => {
   // Создаем точки выхода для каждой кнопки пользователя
   const renderButtons = () => {
     const buttons = data.buttons || [];
@@ -122,7 +133,7 @@ const InlineButtonNode = ({ data }) => {
   };
 
   return (
-    <NodeContainer>
+    <NodeContainer selected={selected}>
       <Handle
         type="target"
         position={Position.Top}

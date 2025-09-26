@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "id": "start_node",
+      "type": "start",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "start",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "message_node",
+      "type": "message",
+      "data": {
+        "label": "Hello, World!",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "message",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
+      },
+      "position": {
+        "x": 200,
+        "y": 0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge1",
+      "source": "start_node",
+      "target": "message_node",
+      "sourceHandle": "main"
+    }
+  ]
+}

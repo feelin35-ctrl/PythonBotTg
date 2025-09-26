@@ -10,6 +10,8 @@ import FileNode from './FileNode';
 import NLPResponseNode from './NLPResponseNode';
 import DelayNode from './DelayNode';
 import KeywordProcessorNode from './KeywordProcessorNode';
+import { ProductNode } from './ProductNode'; // Импортируем как именованный экспорт
+import ScheduleNode from './ScheduleNode'; // Новый блок расписания
 import { ContextMenu } from './ContextMenu';
 import { EditableNode } from './EditableNode';
 
@@ -26,6 +28,8 @@ export const nodeTypes = {
   nlp_response: NLPResponseNode,
   delay: DelayNode,
   keyword_processor: KeywordProcessorNode,
+  product_card: ProductNode, // Новая регистрация
+  schedule: ScheduleNode, // Регистрация блока расписания
 };
 
 // Добавляем отладочный вывод

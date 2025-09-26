@@ -4,16 +4,27 @@ import styled from 'styled-components';
 
 const NodeContainer = styled.div`
   background: #fce4ec;
-  border: 2px solid #e91e63;
+  border: 2px solid ${props => props.selected ? '#ff9800' : '#e91e63'}; /* Оранжевая обводка для выбранного узла */
   border-radius: 8px;
   padding: 10px;
   width: 200px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   
+  /* Добавляем стиль для выбранного узла */
+  ${props => props.selected && `
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.5), 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  `}
+  
   &:hover {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
+    
+    /* Увеличиваем тень при наведении на выбранный узел */
+    ${props => props.selected && `
+      box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.2);
+    `}
   }
 `;
 
@@ -39,9 +50,9 @@ const NodeBody = styled.div`
   color: #333;
 `;
 
-const ImageNode = ({ data }) => {
+const ImageNode = ({ data, selected }) => {
   return (
-    <NodeContainer>
+    <NodeContainer selected={selected}>
       <Handle
         type="target"
         position={Position.Top}

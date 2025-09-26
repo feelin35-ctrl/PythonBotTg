@@ -9,7 +9,7 @@ import styled from 'styled-components';
 // Стили для адаптивного дизайна узлов
 const NodeContainer = styled.div`
   background: ${props => props.color || '#ffffff'};
-  border: 2px solid #2196f3;
+  border: 2px solid ${props => props.selected ? '#ff9800' : '#2196f3'}; /* Оранжевая обводка для выбранного узла */
   border-radius: 8px;
   padding: 10px;
   width: 240px; /* Увеличена ширина на 20% (с 200px до 240px) */
@@ -18,9 +18,20 @@ const NodeContainer = styled.div`
   font-size: 14px;
   position: relative;
   
+  /* Добавляем стиль для выбранного узла */
+  ${props => props.selected && `
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.5), 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  `}
+  
   &:hover {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
+    
+    /* Увеличиваем тень при наведении на выбранный узел */
+    ${props => props.selected && `
+      box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.2);
+    `}
   }
   
   @media (max-width: 768px) {
@@ -1113,6 +1124,30 @@ export const EditableNode = ({ id, data, selected, onDelete }) => {
                     data.onChange(id, { keywords });
                   }
                 }}
+                onKeyDown={(e) => {
+                  // Разрешаем нажатие Enter для создания новой строки
+                  if (e.key === 'Enter') {
+                    // Предотвращаем отправку формы, но разрешаем создание новой строки
+                    e.preventDefault();
+                    const textarea = e.target;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = textarea.value;
+                    const before = text.substring(0, start);
+                    const after = text.substring(end);
+                    
+                    // Вставляем символ новой строки
+                    textarea.value = before + '\n' + after;
+                    textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    
+                    // Триггерим событие изменения
+                    const event = new Event('input', { bubbles: true });
+                    textarea.dispatchEvent(event);
+                    
+                    // Останавливаем дальнейшее распространение события
+                    e.stopPropagation();
+                  }
+                }}
                 className="nodrag"
                 style={{
                   width: "100%",
@@ -1166,28 +1201,299 @@ export const EditableNode = ({ id, data, selected, onDelete }) => {
                 marginBottom: "4px",
                 color: "#666"
               }}>
-                Режим сопоставления:
+                Сообщение при совпадении:
               </label>
-              <select
-                value={data.matchMode || "exact"}
-                onChange={(e) => {
-                  if (data.onChange) {
-                    data.onChange(id, { matchMode: e.target.value });
-                  }
+              <TextareaWithEmoji
+                value={data.matchMessage || ""}
+                onChange={(e) => handleInputChange(e, "matchMessage")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  minHeight: "40px",
+                  resize: "vertical",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
                 }}
+                placeholder="Сообщение при совпадении с ключевым словом"
+              />
+            </div>
+          </>
+        );
+      case "schedule":
+        return (
+          <>
+            <NodeHeader>
+              <span>{nodeLabels.schedule?.toUpperCase() || "SCHEDULE"}</span>
+              <NodeType>schedule</NodeType>
+            </NodeHeader>
+            
+            {/* Вопрос о дате */}
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Вопрос о дате:
+              </label>
+              <TextareaWithEmoji
+                value={data.dateQuestion || "На какую дату вы хотите записаться?"}
+                onChange={(e) => handleInputChange(e, "dateQuestion")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  minHeight: "40px",
+                  resize: "vertical",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            {/* Вопрос о времени */}
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Вопрос о времени:
+              </label>
+              <TextareaWithEmoji
+                value={data.timeQuestion || "На какое время вы хотите записаться?"}
+                onChange={(e) => handleInputChange(e, "timeQuestion")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  minHeight: "40px",
+                  resize: "vertical",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            {/* Диапазон дат */}
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Минимальная дата:
+              </label>
+              <input
+                type="date"
+                value={data.minDate || ""}
+                onChange={(e) => handleInputChange(e, "minDate")}
                 className="nodrag"
                 style={{
                   width: "100%",
                   border: "1px solid #ccc",
-                  padding: "4px",
+                  padding: "5px",
                   boxSizing: "border-box",
                   fontSize: "11px"
                 }}
-              >
-                <option value="exact">Точное совпадение</option>
-                <option value="partial">Частичное совпадение</option>
-              </select>
+              />
             </div>
+            
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Максимальная дата:
+              </label>
+              <input
+                type="date"
+                value={data.maxDate || ""}
+                onChange={(e) => handleInputChange(e, "maxDate")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            {/* Рабочие часы */}
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Начало рабочего дня:
+              </label>
+              <input
+                type="time"
+                value={data.workStartTime || "09:00"}
+                onChange={(e) => handleInputChange(e, "workStartTime")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Конец рабочего дня:
+              </label>
+              <input
+                type="time"
+                value={data.workEndTime || "18:00"}
+                onChange={(e) => handleInputChange(e, "workEndTime")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            {/* Интервал времени */}
+            <div style={{ marginBottom: "8px" }}>
+              <label style={{ 
+                display: "block", 
+                fontSize: "11px", 
+                marginBottom: "4px",
+                color: "#666"
+              }}>
+                Интервал времени (минуты):
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="120"
+                value={data.timeInterval || 30}
+                onChange={(e) => handleInputChange(e, "timeInterval")}
+                className="nodrag"
+                style={{
+                  width: "100%",
+                  border: "1px solid #ccc",
+                  padding: "5px",
+                  boxSizing: "border-box",
+                  fontSize: "11px"
+                }}
+              />
+            </div>
+            
+            {/* Интеграция с CRM */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              marginBottom: "8px",
+              fontSize: "11px",
+              color: "#666"
+            }}>
+              <input
+                type="checkbox"
+                id={`crmIntegration-${id}`}
+                checked={data.crmIntegration || false}
+                onChange={(e) => {
+                  if (data.onChange) {
+                    data.onChange(id, { crmIntegration: e.target.checked });
+                  }
+                }}
+                className="nodrag"
+                style={{
+                  marginRight: "5px",
+                  cursor: "pointer"
+                }}
+              />
+              <label
+                htmlFor={`crmIntegration-${id}`}
+                className="nodrag"
+                style={{
+                  cursor: "pointer",
+                  userSelect: "none"
+                }}
+              >
+                Интеграция с CRM
+              </label>
+            </div>
+            
+            {data.crmIntegration && (
+              <>
+                <div style={{ marginBottom: "8px" }}>
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: "11px", 
+                    marginBottom: "4px",
+                    color: "#666"
+                  }}>
+                    URL CRM-сервиса:
+                  </label>
+                  <input
+                    type="text"
+                    value={data.crmEndpoint || ""}
+                    onChange={(e) => handleInputChange(e, "crmEndpoint")}
+                    className="nodrag"
+                    style={{
+                      width: "100%",
+                      border: "1px solid #ccc",
+                      padding: "5px",
+                      boxSizing: "border-box",
+                      fontSize: "11px"
+                    }}
+                    placeholder="https://api.crm.example.com/slots"
+                  />
+                </div>
+                
+                <div style={{ marginBottom: "8px" }}>
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: "11px", 
+                    marginBottom: "4px",
+                    color: "#666"
+                  }}>
+                    Сообщение при недоступном времени:
+                  </label>
+                  <TextareaWithEmoji
+                    value={data.unavailableMessage || "Извините, это время уже занято. Пожалуйста, выберите другое."}
+                    onChange={(e) => handleInputChange(e, "unavailableMessage")}
+                    className="nodrag"
+                    style={{
+                      width: "100%",
+                      minHeight: "40px",
+                      resize: "vertical",
+                      border: "1px solid #ccc",
+                      padding: "5px",
+                      boxSizing: "border-box",
+                      fontSize: "11px"
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </>
         );
       case "start":
@@ -1289,6 +1595,7 @@ export const EditableNode = ({ id, data, selected, onDelete }) => {
     <>
       <NodeContainer 
         color={colors[data.blockType] || '#ffffff'}
+        selected={selected}  /* Передаем свойство selected */
         onContextMenu={handleContextMenu}
       >
         <Handle type="target" position={Position.Top} style={{ background: "#555" }} />

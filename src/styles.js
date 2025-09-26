@@ -19,6 +19,8 @@ export const colors = {
   nlp_response: "#f0f8ff",
   delay: "#ffe4b5",
   keyword_processor: "#FF9800",
+  product_card: "#e8f5e9", // Новый цвет
+  schedule: "#ce93d8", // Фиолетовый цвет для блока расписания
 };
 
 export const nodeLabels = {
@@ -42,6 +44,8 @@ export const nodeLabels = {
   nlp_response: "NLP Ответ",
   delay: "Задержка",
   keyword_processor: "Обработка по ключевым словам",
+  product_card: "Карточка товара", // Новая метка
+  schedule: "Расписание", // Новая метка для блока расписания
 };
 
 export const nodeTypes = Object.keys(nodeLabels);

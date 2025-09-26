@@ -111,6 +111,16 @@ const Sidebar = () => {
       description: 'Обработка по ключевым словам'
     },
     {
+      type: 'product_card',
+      title: 'Product Card',
+      description: 'Карточка товара с фото и описанием'
+    },
+    {
+      type: 'schedule',
+      title: 'Schedule',
+      description: 'Блок для записи пользователей на дату и время'
+    },
+    {
       type: 'end',
       title: 'End',
       description: 'Конец сценария'

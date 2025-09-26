@@ -226,24 +226,45 @@
         "buttonsPerRow": null,
         "hideKeyboard": null,
         "keywords": [
-          "Капучино"
+          "фотосессию"
         ],
         "caseSensitive": false,
         "matchMode": "partial"
       },
       "position": {
-        "x": 542.9166288778399,
-        "y": 107.62991897922097
+        "x": 576.2748210732334,
+        "y": -136.5520478910587
+      }
+    },
+    {
+      "id": "c358917c-d1c6-43e2-9802-99b67fb525e7",
+      "type": "schedule",
+      "data": {
+        "label": "",
+        "url": null,
+        "images": null,
+        "buttons": null,
+        "condition": null,
+        "variableName": null,
+        "method": null,
+        "payload": null,
+        "target_node": null,
+        "onChange": null,
+        "blockType": "schedule",
+        "buttonLayout": null,
+        "buttonsPerRow": null,
+        "hideKeyboard": null,
+        "keywords": null,
+        "caseSensitive": null,
+        "matchMode": null
+      },
+      "position": {
+        "x": 231.22216156799823,
+        "y": -138.60764506794627
       }
     }
   ],
   "edges": [
-    {
-      "id": "reactflow__edge-3cb9f441-735a-4375-8d24-4c1bf3ddb371main-362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
-      "source": "3cb9f441-735a-4375-8d24-4c1bf3ddb371",
-      "target": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
-      "sourceHandle": "main"
-    },
     {
       "id": "reactflow__edge-362e0e15-7a4a-4e5c-b5a3-7db586d90cef0-2a6553a6-1eef-41f9-9f7b-887288c11691",
       "source": "362e0e15-7a4a-4e5c-b5a3-7db586d90cef",
@@ -263,10 +284,11 @@
       "sourceHandle": "0"
     },
     {
-      "id": "reactflow__edge-fead7f6e-2b9b-434f-b5a2-178721f6b539main-2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "id": "reactflow__edge-fead7f6e-2b9b-434f-b5a2-178721f6b539main-c358917c-d1c6-43e2-9802-99b67fb525e7",
       "source": "fead7f6e-2b9b-434f-b5a2-178721f6b539",
-      "target": "2a6553a6-1eef-41f9-9f7b-887288c11691",
+      "target": "c358917c-d1c6-43e2-9802-99b67fb525e7",
       "sourceHandle": "main"
     }
-  ]
+  ],
+  "admin_chat_id": "1106294909"
 }
